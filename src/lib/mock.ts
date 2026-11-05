@@ -80,6 +80,7 @@ function windowInfo(
     className,
     title,
     rect,
+    normalRect: rect,
     visualRect: rect,
     state,
     monitorId,

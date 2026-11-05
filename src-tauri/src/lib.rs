@@ -60,8 +60,25 @@ fn app_info() -> serde_json::Value {
     })
 }
 
+#[cfg(windows)]
+fn enable_per_monitor_dpi_awareness() {
+    use windows::Win32::UI::HiDpi::{
+        DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
+    };
+
+    // Tauri/WebView2 normally sets this too, but the window backend must see the
+    // same physical-pixel coordinate space as the monitor inventory. Ignore the
+    // error when the process is already per-monitor aware.
+    unsafe {
+        let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(windows)]
+    enable_per_monitor_dpi_awareness();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![

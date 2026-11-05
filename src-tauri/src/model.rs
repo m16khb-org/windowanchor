@@ -31,6 +31,7 @@ pub struct WindowInfo {
     pub class_name: String,
     pub title: String,
     pub rect: Rect,
+    pub normal_rect: Option<Rect>,
     pub visual_rect: Option<Rect>,
     pub state: WindowState,
     pub monitor_id: Option<String>,

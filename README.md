@@ -46,6 +46,7 @@ between home and office desks, and use mixed resolutions or scales.
 ### Available in this scaffold
 
 - **Fluent layout editor** with per-display focus, zoom, and a live window inventory.
+- **Per-layout actions**: use the `…` menu on a layout card to delete it.
 - **Capture dialog** with window selection, display summary, and layout naming.
 - **Windows window enumeration** through Win32 (`EnumWindows`, `GetWindowPlacement`,
   DWM frame bounds, monitor identity).
@@ -139,12 +140,18 @@ scripts/                 UI QA and screenshot helpers
 1. Enumerate visible top-level windows and read their window rect, DWM visual
    rect, state, process path, class, and monitor.
 2. Store the target geometry with the display's stable identity and scale.
-3. On restore, prefer a window with the same process path. Use window class and
-   title as tie-breakers when several windows belong to the same app.
+3. On restore, prefer the original window handle when its process and class still
+   match. Fall back to process path, class, and title only when the window was
+   recreated. If several windows match equally, skip the target rather than move
+   the wrong window.
 4. Move the matched window with `SetWindowPos`, restore minimized windows first,
-   and reapply maximized state last.
-5. Report `restored`, `skipped`, and `failed` counts. A missing window never blocks
-   the rest of the layout.
+   and reapply maximized state last. Restore the captured relative stacking order.
+5. Report `restored`, `skipped`, and `failed` counts with a reason. A missing
+   window never blocks the rest of the layout.
+
+Only windows stored in the active layout are moved. Other visible windows stay
+where they are; the Inspector shows how many windows are currently open versus how
+many are part of the layout.
 
 The current implementation matches windows in the live session and across app
 restarts when the process is still running. Persistent profile storage and a

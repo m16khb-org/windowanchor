@@ -131,19 +131,32 @@ UWP frame hosts for now.
 
 ### Restore
 
-The restore engine re-enumerates current windows, scores candidates against each
-target, and moves the best match. The score rewards:
+The restore engine re-enumerates current windows and selects a target in this order:
 
-- exact process path (+100) or process name (+40);
-- exact window class (+20);
-- exact title (+30) or prefix match (+15);
-- matching state (+5);
-- same window handle (+10).
+1. **Original HWND**, when the process and window class still match. This is the
+   normal same-session path and prevents two windows of the same app from being
+   swapped.
+2. Otherwise, process path (+100) or process name (+40), window class (+20),
+   exact title (+30) or prefix (+15), matching state (+5), and the old HWND (+10).
+   The score must be at least 60.
+3. If two candidates tie for the best score, the target is skipped as
+   `ambiguous_window` rather than moving the wrong window.
 
-A minimum score of 40 prevents an unrelated process from being moved. Unmatched
-targets are reported as `window_not_found`. `SetWindowPos` is called with
-`SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW`; minimized windows are restored
-first and maximized windows are maximized last.
+Before moving, the target rectangle must intersect a current display. A target
+outside every monitor is reported as `target_off_screen`. Minimized windows use
+their normal placement rectangle instead of the minimized off-screen coordinates.
+
+`SetWindowPos` is called with `SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW`.
+The result is verified with `GetWindowRect`; if the app ignored the geometry,
+`SetWindowPlacement` is tried as a fallback. A still-mismatched window is reported
+as `move_ignored`. Minimized windows are restored before moving and minimized
+again afterward; maximized windows are moved to their normal rectangle and then
+maximized. The captured relative stacking order is applied last with
+`SWP_NOACTIVATE`.
+
+The Windows process sets **Per-Monitor V2 DPI awareness** before Tauri creates any
+window, so `GetWindowRect` and `SetWindowPos` use the same physical-pixel space as
+the monitor inventory.
 
 ### Known Windows limits
 

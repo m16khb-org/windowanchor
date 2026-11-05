@@ -5,13 +5,12 @@ import {
   Keyboard24Regular,
   Play24Regular,
   ShieldCheckmark24Regular,
-  WindowNew24Regular,
 } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { profileName } from "../lib/profile";
 import type { Display, LayoutProfile, View, WindowInfo } from "../lib/types";
 import { LanguageMenu } from "./LanguageMenu";
-import { Badge, Button, IconButton, Kbd, Switch } from "./ui";
+import { Button, IconButton, Kbd, Switch } from "./ui";
 
 export function TopBar({
   view,
@@ -38,19 +37,7 @@ export function TopBar({
   const viewLabel = t(`topbar.${view}`);
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-3">
-      <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--colorBrandBackground)] text-white">
-          <WindowNew24Regular />
-        </span>
-        <span className="text-sm font-semibold tracking-[-0.01em]">
-          WindowAnchor
-        </span>
-        <Badge tone="neutral">v0.1</Badge>
-      </div>
-
-      <div className="mx-1 h-4 w-px bg-line" />
-
+    <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4">
       <nav
         aria-label={t("topbar.layouts")}
         className="flex min-w-0 items-center gap-1 text-xs"

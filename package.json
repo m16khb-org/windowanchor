@@ -16,6 +16,7 @@
     "check": "tsc --noEmit",
     "qa:i18n": "node scripts/qa-i18n-pages.mjs",
     "qa:ui": "node scripts/qa-screenshots.mjs",
+    "qa:delete": "node scripts/qa-delete.mjs",
     "shot:readme": "node scripts/readme-shot.mjs",
     "tauri": "tauri"
   },

@@ -16,6 +16,7 @@ import {
   CommandPalette,
   type CommandAction,
 } from "./components/CommandPalette";
+import { DeleteProfileDialog } from "./components/DeleteProfileDialog";
 import { Inspector } from "./components/Inspector";
 import { LayoutCanvas } from "./components/LayoutCanvas";
 import { ProfileRail } from "./components/ProfileRail";
@@ -100,6 +101,7 @@ export default function App({
   const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [deleteProfile, setDeleteProfile] = useState<LayoutProfile | null>(null);
   const [autoRestore, setAutoRestore] = useState(() =>
     storedBoolean(AUTO_RESTORE_KEY, true),
   );
@@ -277,18 +279,25 @@ export default function App({
     }
 
     const name = profileName(activeProfile, t);
-    const targets = activeProfile.windows.map((window) => ({
-      id: window.id,
-      processPath: window.processPath,
-      processName: window.processName,
-      className: window.className,
-      title: window.title,
-      x: window.rect.x,
-      y: window.rect.y,
-      width: window.rect.width,
-      height: window.rect.height,
-      state: window.state,
-    }));
+    const targets = activeProfile.windows.map((window) => {
+      const targetRect =
+        window.state === "minimized" && window.normalRect
+          ? window.normalRect
+          : window.rect;
+
+      return {
+        id: window.id,
+        processPath: window.processPath,
+        processName: window.processName,
+        className: window.className,
+        title: window.title,
+        x: targetRect.x,
+        y: targetRect.y,
+        width: targetRect.width,
+        height: targetRect.height,
+        state: window.state,
+      };
+    });
 
     let result: RestoreResult | null = null;
     try {
@@ -312,7 +321,15 @@ export default function App({
         ? t("toasts.reasonWindowClosed")
         : failureReason === "move_failed"
           ? t("toasts.reasonRefused")
-          : failureReason;
+          : failureReason === "ambiguous_window"
+            ? t("toasts.reasonAmbiguous")
+            : failureReason === "target_off_screen"
+              ? t("toasts.reasonOffScreen")
+              : failureReason === "invalid_geometry"
+                ? t("toasts.reasonInvalid")
+                : failureReason === "move_ignored"
+                  ? t("toasts.reasonIgnored")
+                  : failureReason;
     const failureDetail =
       failedTarget && reasonLabel
         ? ` · ${failedTarget.title}: ${reasonLabel}`
@@ -392,6 +409,23 @@ export default function App({
       current.map((rule) =>
         rule.id === id ? { ...rule, enabled: !rule.enabled } : rule,
       ),
+    );
+  }
+
+  function handleDeleteProfile(profile: LayoutProfile) {
+    const name = profileName(profile, t);
+    const nextProfiles = profiles.filter((item) => item.id !== profile.id);
+
+    setProfiles(nextProfiles);
+    if (activeProfileId === profile.id) {
+      setActiveProfileId(nextProfiles[0]?.id ?? "");
+    }
+    setSelectedWindowId(null);
+    setDeleteProfile(null);
+    setLastAction(t("toasts.deleted.title"));
+    showToast(
+      t("toasts.deleted.title"),
+      t("toasts.deleted.detail", { name }),
     );
   }
 
@@ -543,6 +577,7 @@ export default function App({
         <ProfileRail
           activeProfileId={activeProfile?.id ?? ""}
           onCapture={() => setCaptureOpen(true)}
+          onDeleteProfile={setDeleteProfile}
           onNavigate={setView}
           onSelectProfile={(profile) => {
             setActiveProfileId(profile.id);
@@ -604,6 +639,7 @@ export default function App({
         {view === "layouts" && (
           <Inspector
             activity={activity}
+            currentWindowCount={windows.length}
             displays={displays}
             onCapture={() => setCaptureOpen(true)}
             onClearSelection={() => setSelectedWindowId(null)}
@@ -624,6 +660,16 @@ export default function App({
         onSave={handleCapture}
         open={captureOpen}
         windows={windows}
+      />
+
+      <DeleteProfileDialog
+        onConfirm={handleDeleteProfile}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteProfile(null);
+          }
+        }}
+        profile={deleteProfile}
       />
 
       <CommandPalette

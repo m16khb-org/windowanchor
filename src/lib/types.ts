@@ -26,6 +26,7 @@ export type WindowInfo = {
   className: string;
   title: string;
   rect: Rect;
+  normalRect: Rect | null;
   visualRect: Rect | null;
   state: WindowState;
   monitorId: string | null;

@@ -106,53 +106,61 @@ export function LayoutCanvas({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
-        <Target20Regular className="text-[var(--colorBrandForeground1)]" />
-        <span className="text-xs font-semibold text-text">{t("canvas.title")}</span>
-        <Badge tone="teal">
-          {t("common.display", { count: displays.length })}
-        </Badge>
+      <div
+        className={cn(
+          "relative min-h-0 flex-1 overflow-hidden bg-canvas",
+          showGrid && "layout-grid",
+        )}
+        onClick={() => onSelectWindow(null)}
+        ref={ref}
+      >
+        <div className="layout-fade pointer-events-none absolute inset-0" />
 
-        <div
-          aria-label={t("canvas.focusDisplay")}
-          className="flex items-center rounded border border-line bg-panel p-0.5"
-          role="group"
-        >
-          <button
-            aria-pressed={focusedDisplayId === null}
-            className={cn(
-              "rounded px-1.5 py-0.5 font-mono text-[10px] transition-colors",
-              focusedDisplayId === null
-                ? "bg-panel-3 text-text"
-                : "text-faint hover:text-muted",
-            )}
-            onClick={() => setFocusedDisplayId(null)}
-            type="button"
+        <div className="absolute left-3 top-3 z-30 flex items-center gap-2 rounded-md border border-line bg-surface/95 px-2 py-1.5 shadow-[var(--shadow2)] backdrop-blur">
+          <Target20Regular className="text-[var(--colorBrandForeground1)]" />
+          <Badge tone="teal">
+            {t("common.display", { count: displays.length })}
+          </Badge>
+          <div
+            aria-label={t("canvas.focusDisplay")}
+            className="flex items-center rounded border border-line bg-panel-2 p-0.5"
+            role="group"
           >
-            {t("canvas.all")}
-          </button>
-          {displays.map((display, index) => (
             <button
-              aria-label={t("canvas.display", { number: index + 1 })}
-              aria-pressed={focusedDisplayId === display.id}
+              aria-pressed={focusedDisplayId === null}
               className={cn(
-                "rounded px-1.5 py-0.5 font-mono text-[10px] transition-colors",
-                focusedDisplayId === display.id
-                  ? "bg-panel-3 text-text"
+                "rounded px-1.5 py-0.5 text-[11px] transition-colors",
+                focusedDisplayId === null
+                  ? "bg-surface font-medium text-text shadow-[var(--shadow2)]"
                   : "text-faint hover:text-muted",
               )}
-              key={display.id}
-              onClick={() => setFocusedDisplayId(display.id)}
+              onClick={() => setFocusedDisplayId(null)}
               type="button"
             >
-              {index + 1}
+              {t("canvas.all")}
             </button>
-          ))}
+            {displays.map((display, index) => (
+              <button
+                aria-label={t("canvas.display", { number: index + 1 })}
+                aria-pressed={focusedDisplayId === display.id}
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-[11px] transition-colors",
+                  focusedDisplayId === display.id
+                    ? "bg-surface font-medium text-text shadow-[var(--shadow2)]"
+                    : "text-faint hover:text-muted",
+                )}
+                key={display.id}
+                onClick={() => setFocusedDisplayId(display.id)}
+                type="button"
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <span className="text-[11px] text-faint">{t("canvas.clickHint")}</span>
-        <div className="ml-auto flex items-center gap-1">
-          <span className="mr-1 font-mono text-[10px] text-faint">
+        <div className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-md border border-line bg-surface/95 px-1.5 py-1 shadow-[var(--shadow2)] backdrop-blur">
+          <span className="mr-1 text-[10px] text-faint">
             {formatPercent(zoom)}
           </span>
           <IconButton
@@ -190,17 +198,6 @@ export function LayoutCanvas({
             <Grid20Regular />
           </IconButton>
         </div>
-      </div>
-
-      <div
-        className={cn(
-          "relative min-h-0 flex-1 overflow-hidden bg-canvas",
-          showGrid && "layout-grid",
-        )}
-        onClick={() => onSelectWindow(null)}
-        ref={ref}
-      >
-        <div className="layout-fade pointer-events-none absolute inset-0" />
 
         {visibleDisplays.map((display, index) => {
           const displayNumber = displays.findIndex((item) => item.id === display.id) + 1;

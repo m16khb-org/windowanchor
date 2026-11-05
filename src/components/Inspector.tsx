@@ -53,6 +53,7 @@ export function Inspector({
   displays,
   selectedWindow,
   activity,
+  currentWindowCount,
   onClearSelection,
   onCreateRule,
   onCapture,
@@ -62,6 +63,7 @@ export function Inspector({
   displays: Display[];
   selectedWindow: WindowInfo | null;
   activity: ActivityEntry[];
+  currentWindowCount: number;
   onClearSelection: () => void;
   onCreateRule: (window: WindowInfo) => void;
   onCapture: () => void;
@@ -286,6 +288,12 @@ export function Inspector({
               {t("inspector.matched")}
             </div>
           </div>
+        </div>
+        <div className="mt-2 rounded-md bg-panel-2 px-2.5 py-2 text-[11px] leading-4 text-muted">
+          {t("inspector.currentDesktopNote", {
+            current: currentWindowCount,
+            saved: profile?.windows.length ?? 0,
+          })}
         </div>
       </div>
 

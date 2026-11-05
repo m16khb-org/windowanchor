@@ -1,12 +1,21 @@
 import {
   Add20Regular,
   ChevronRight16Regular,
+  Delete20Regular,
   History20Regular,
   Layer20Regular,
+  MoreHorizontal20Regular,
   Options20Regular,
   Search20Regular,
   Settings20Regular,
 } from "@fluentui/react-icons";
+import {
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
+} from "@fluentui/react-components";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -17,7 +26,7 @@ import {
 import type { LayoutProfile, View } from "../lib/types";
 import { cn } from "../lib/utils";
 import { MiniMap } from "./MiniMap";
-import { Badge, Button, Kbd } from "./ui";
+import { Badge, Button, IconButton, Kbd } from "./ui";
 
 const NAV_ITEMS: Array<{
   id: Exclude<View, "layouts">;
@@ -37,6 +46,7 @@ export function ProfileRail({
   onSelectProfile,
   onNavigate,
   onCapture,
+  onDeleteProfile,
 }: {
   profiles: LayoutProfile[];
   activeProfileId: string;
@@ -44,6 +54,7 @@ export function ProfileRail({
   onSelectProfile: (profile: LayoutProfile) => void;
   onNavigate: (view: Exclude<View, "layouts">) => void;
   onCapture: () => void;
+  onDeleteProfile: (profile: LayoutProfile) => void;
 }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
@@ -108,7 +119,7 @@ export function ProfileRail({
           {filtered.map((profile) => {
             const active = view === "layouts" && profile.id === activeProfileId;
             return (
-              <button
+              <div
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "group relative w-full rounded-lg border px-2.5 pb-2.5 pt-2 text-left transition-colors",
@@ -118,6 +129,13 @@ export function ProfileRail({
                 )}
                 key={profile.id}
                 onClick={() => onSelectProfile(profile)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectProfile(profile);
+                  }
+                }}
+                role="button"
                 style={
                   active
                     ? {
@@ -125,7 +143,7 @@ export function ProfileRail({
                       }
                     : undefined
                 }
-                type="button"
+                tabIndex={0}
               >
                 <div className="mb-1.5 flex items-center gap-2">
                   <span
@@ -136,16 +154,41 @@ export function ProfileRail({
                   <span className="truncate text-sm font-semibold">
                     {profileName(profile, t)}
                   </span>
-                  {active && (
-                    <Badge className="ml-auto" tone="amber">
-                      {t("profiles.live")}
-                    </Badge>
-                  )}
-                  {!active && profile.hotkey && (
-                    <span className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">
-                      <Kbd>{profile.hotkey}</Kbd>
-                    </span>
-                  )}
+                  <div
+                    className="ml-auto flex shrink-0 items-center gap-1"
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
+                    {active && (
+                      <Badge tone="amber">{t("profiles.live")}</Badge>
+                    )}
+                    {!active && profile.hotkey && (
+                      <span className="opacity-0 transition-opacity group-hover:opacity-100">
+                        <Kbd>{profile.hotkey}</Kbd>
+                      </span>
+                    )}
+                    <Menu>
+                      <MenuTrigger disableButtonEnhancement>
+                        <IconButton
+                          aria-label={t("profiles.actions")}
+                          className="h-7 w-7"
+                          title={t("profiles.actions")}
+                        >
+                          <MoreHorizontal20Regular />
+                        </IconButton>
+                      </MenuTrigger>
+                      <MenuPopover>
+                        <MenuList>
+                          <MenuItem
+                            icon={<Delete20Regular />}
+                            onClick={() => onDeleteProfile(profile)}
+                          >
+                            {t("profiles.delete")}
+                          </MenuItem>
+                        </MenuList>
+                      </MenuPopover>
+                    </Menu>
+                  </div>
                 </div>
 
                 <p className="mb-2 line-clamp-2 text-xs leading-5 text-muted">
@@ -168,7 +211,7 @@ export function ProfileRail({
                   </span>
                   <span className="shrink-0">{profileUpdatedAt(profile, t)}</span>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

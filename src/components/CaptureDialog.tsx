@@ -163,6 +163,14 @@ export function CaptureDialog({
             </span>
           </div>
 
+          {selected.size > 0 && selected.size < windows.length && (
+            <div className="shrink-0 border-b border-line bg-[var(--colorPaletteDarkOrangeBackground1)] px-5 py-2 text-[11px] text-[var(--colorPaletteDarkOrangeForeground1)]">
+              {t("capture.partialWarning", {
+                count: windows.length - selected.size,
+              })}
+            </div>
+          )}
+
           <DialogContent
             className="panel-scroll min-h-0 overflow-y-auto"
             style={{ display: "block", padding: 8 }}
