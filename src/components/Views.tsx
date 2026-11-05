@@ -1,23 +1,23 @@
 import {
-  ArrowDownToLine,
-  ArrowRight,
-  CheckCircle2,
-  CircleAlert,
-  Copy,
-  Download,
-  History,
-  Info,
-  Keyboard,
-  Monitor,
-  Plus,
-  RotateCcw,
-  Shield,
-  SlidersHorizontal,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+  Add20Regular,
+  ArrowCounterclockwise20Regular,
+  ArrowDownload20Regular,
+  ArrowRight20Regular,
+  CheckmarkCircle20Regular,
+  Copy20Regular,
+  Desktop24Regular,
+  Delete20Regular,
+  History20Regular,
+  Info20Regular,
+  Keyboard20Regular,
+  Options20Regular,
+  Shield20Regular,
+  Sparkle20Regular,
+  Warning20Regular,
+} from "@fluentui/react-icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { ThemeMode } from "../Root";
 import {
   activityDetail,
   activityTime,
@@ -47,7 +47,7 @@ export function RulesView({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4 text-amber" />
+              <Options20Regular className="text-[var(--colorBrandForeground1)]" />
               <h1 className="text-lg font-semibold tracking-[-0.01em]">
                 {t("rules.title")}
               </h1>
@@ -58,7 +58,7 @@ export function RulesView({
             </p>
           </div>
           <Button onClick={onAddRule} size="sm" variant="primary">
-            <Plus className="h-3.5 w-3.5" />
+            <Add20Regular />
             {t("rules.newRule")}
           </Button>
         </div>
@@ -73,7 +73,7 @@ export function RulesView({
               className="rounded-lg border border-line bg-panel px-3 py-2.5"
               key={label}
             >
-              <div className="text-[10px] uppercase tracking-wide text-faint">
+              <div className="text-xs text-muted">
                 {label}
               </div>
               <div className={cn("mt-0.5 text-[13px] font-medium", tone)}>
@@ -84,7 +84,7 @@ export function RulesView({
         </div>
 
         <div className="overflow-hidden rounded-lg border border-line bg-panel">
-          <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_90px_44px] gap-3 border-b border-line px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-faint">
+          <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_90px_44px] gap-3 border-b border-line px-3 py-2 text-xs font-semibold text-muted">
             <span>{t("rules.application")}</span>
             <span>{t("rules.target")}</span>
             <span>{t("rules.priority")}</span>
@@ -101,16 +101,16 @@ export function RulesView({
                   <div className="truncate text-[12px] font-medium">
                     {appLabel(rule.processName)}
                   </div>
-                  <div className="truncate font-mono text-[9px] text-faint">
+                  <div className="truncate font-mono text-xs text-faint">
                     {rule.matchKey ? t(rule.matchKey) : rule.match}
                   </div>
                 </div>
               </div>
               <div className="min-w-0">
-                <div className="truncate text-[11px] text-text">
+                <div className="truncate text-xs text-text">
                   {ruleTarget(rule, t)}
                 </div>
-                <div className="text-[9px] text-faint">
+                <div className="text-xs text-faint">
                   {t("rules.afterRestore")}
                 </div>
               </div>
@@ -128,8 +128,8 @@ export function RulesView({
           ))}
         </div>
 
-        <div className="mt-3 flex items-start gap-2 rounded-lg border border-line bg-panel/70 px-3 py-2.5 text-[11px] leading-5 text-muted">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue" />
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-line bg-panel/70 px-3 py-2.5 text-xs leading-5 text-muted">
+          <Info20Regular className="shrink-0 text-[var(--colorBrandForeground1)]" />
           <span>{t("rules.callout")}</span>
         </div>
       </div>
@@ -157,7 +157,7 @@ export function ActivityView({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <History className="h-4 w-4 text-teal" />
+              <History20Regular className="text-[var(--colorPaletteTealForeground1)]" />
               <h1 className="text-lg font-semibold tracking-[-0.01em]">
                 {t("activity.title")}
               </h1>
@@ -167,7 +167,7 @@ export function ActivityView({
             </p>
           </div>
           <Button onClick={onCopyDiagnostics} size="sm" variant="secondary">
-            <Copy className="h-3.5 w-3.5" />
+            <Copy20Regular />
             {t("activity.copy")}
           </Button>
         </div>
@@ -182,7 +182,7 @@ export function ActivityView({
               className="rounded-lg border border-line bg-panel px-3 py-2.5"
               key={label}
             >
-              <div className="text-[10px] uppercase tracking-wide text-faint">
+              <div className="text-xs text-muted">
                 {label}
               </div>
               <div className={cn("mt-0.5 font-mono text-[15px]", tone)}>
@@ -196,7 +196,7 @@ export function ActivityView({
           {filters.map((kind) => (
             <button
               className={cn(
-                "rounded px-2 py-1 text-[11px] capitalize transition-colors",
+                "rounded px-2 py-1 text-xs capitalize transition-colors",
                 filter === kind
                   ? "bg-panel-2 text-text"
                   : "text-muted hover:bg-panel hover:text-text",
@@ -227,13 +227,13 @@ export function ActivityView({
                 )}
               >
                 {entry.kind === "restore" ? (
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <ArrowCounterclockwise20Regular />
                 ) : entry.kind === "capture" ? (
-                  <Download className="h-3.5 w-3.5" />
+                  <ArrowDownload20Regular />
                 ) : entry.kind === "rule" ? (
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  <Options20Regular />
                 ) : (
-                  <CircleAlert className="h-3.5 w-3.5" />
+                  <Warning20Regular />
                 )}
               </span>
               <div className="min-w-0 flex-1">
@@ -241,15 +241,15 @@ export function ActivityView({
                   <span className="truncate text-[12px] font-medium">
                     {activityTitle(entry, t)}
                   </span>
-                  <Badge tone={entry.status === "ok" ? "green" : "amber"}>
+                  <Badge tone={entry.status === "ok" ? "green" : "warning"}>
                     {t(`activity.filters.${entry.kind}`)}
                   </Badge>
                 </div>
-                <p className="mt-0.5 text-[11px] leading-5 text-muted">
+                <p className="mt-0.5 text-xs leading-5 text-muted">
                   {activityDetail(entry, t)}
                 </p>
               </div>
-              <span className="shrink-0 font-mono text-[9px] text-faint">
+              <span className="shrink-0 font-mono text-xs text-faint">
                 {activityTime(entry, t)}
               </span>
             </div>
@@ -273,12 +273,18 @@ export function SettingsView({
   showGrid,
   onToggleGrid,
   onResetData,
+  themeMode,
+  resolvedTheme,
+  onThemeModeChange,
 }: {
   autoRestore: boolean;
   onToggleAutoRestore: (value: boolean) => void;
   showGrid: boolean;
   onToggleGrid: () => void;
   onResetData: () => void;
+  themeMode: ThemeMode;
+  resolvedTheme: "light" | "dark";
+  onThemeModeChange: (mode: ThemeMode) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
@@ -319,7 +325,7 @@ export function SettingsView({
       <div className="mx-auto max-w-3xl">
         <div className="mb-4">
           <div className="mb-1 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-amber" />
+            <Sparkle20Regular className="text-[var(--colorBrandForeground1)]" />
             <h1 className="text-lg font-semibold tracking-[-0.01em]">
               {t("settings.title")}
             </h1>
@@ -356,7 +362,7 @@ export function SettingsView({
           >
             <select
               aria-label={t("settings.delay")}
-              className="h-8 rounded-md border border-line bg-canvas px-2 text-[11px] text-text focus:border-line-strong focus:outline-none"
+              className="h-8 rounded-md border border-line bg-canvas px-2 text-xs text-text focus:border-line-strong focus:outline-none"
               onChange={(event) => setDebounce(event.target.value)}
               value={debounce}
             >
@@ -393,7 +399,24 @@ export function SettingsView({
             description={t("settings.themeDesc")}
             label={t("settings.theme")}
           >
-            <Badge tone="neutral">{t("settings.graphite")}</Badge>
+            <select
+              aria-label={t("settings.theme")}
+              className="h-8 rounded-md border border-line bg-canvas px-2 text-[12px] text-text focus:border-line-strong focus:outline-none"
+              onChange={(event) =>
+                onThemeModeChange(event.target.value as ThemeMode)
+              }
+              value={themeMode}
+            >
+              <option value="system">
+                {t("settings.themeSystem")} (
+                {resolvedTheme === "dark"
+                  ? t("settings.themeDark")
+                  : t("settings.themeLight")}
+                )
+              </option>
+              <option value="light">{t("settings.themeLight")}</option>
+              <option value="dark">{t("settings.themeDark")}</option>
+            </select>
           </SettingRow>
           <SettingRow
             description={t("settings.languageDesc")}
@@ -401,7 +424,7 @@ export function SettingsView({
           >
             <select
               aria-label={t("settings.language")}
-              className="h-8 rounded-md border border-line bg-canvas px-2 text-[11px] text-text focus:border-line-strong focus:outline-none"
+              className="h-8 rounded-md border border-line bg-canvas px-2 text-xs text-text focus:border-line-strong focus:outline-none"
               onChange={(event) => void i18n.changeLanguage(event.target.value)}
               value={i18n.resolvedLanguage ?? "en"}
             >
@@ -416,19 +439,19 @@ export function SettingsView({
 
         <Section title={t("settings.permissions")}>
           <div className="flex items-start gap-2.5 rounded-md border border-line bg-panel-2/50 px-3 py-2.5">
-            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-green" />
+            <Shield20Regular className="shrink-0 text-[var(--colorPaletteGreenForeground1)]" />
             <div>
-              <div className="text-[11px] font-medium">{t("settings.windows")}</div>
-              <p className="mt-0.5 text-[10px] leading-4 text-muted">
+              <div className="text-xs font-medium">{t("settings.windows")}</div>
+              <p className="mt-0.5 text-xs leading-5 text-muted">
                 {t("settings.windowsDesc")}
               </p>
             </div>
           </div>
           <div className="mt-2 flex items-start gap-2.5 rounded-md border border-line bg-panel-2/50 px-3 py-2.5">
-            <Keyboard className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+            <Keyboard20Regular className="shrink-0 text-muted" />
             <div>
-              <div className="text-[11px] font-medium">{t("settings.macos")}</div>
-              <p className="mt-0.5 text-[10px] leading-4 text-muted">
+              <div className="text-xs font-medium">{t("settings.macos")}</div>
+              <p className="mt-0.5 text-xs leading-5 text-muted">
                 {t("settings.macosDesc")}
               </p>
             </div>
@@ -438,14 +461,14 @@ export function SettingsView({
         <Section title={t("settings.data")}>
           <div className="flex items-center justify-between gap-3 py-1.5">
             <div>
-              <div className="text-[11px] font-medium">{t("settings.export")}</div>
-              <p className="text-[10px] text-muted">{t("settings.exportDesc")}</p>
+              <div className="text-xs font-medium">{t("settings.export")}</div>
+              <p className="text-xs text-muted">{t("settings.exportDesc")}</p>
             </div>
             <Button onClick={exportData} size="sm" variant="secondary">
               {saved ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-green" />
+                <CheckmarkCircle20Regular className="text-[var(--colorPaletteGreenForeground1)]" />
               ) : (
-                <ArrowDownToLine className="h-3.5 w-3.5" />
+                <ArrowDownload20Regular />
               )}
               {saved ? t("settings.exported") : t("settings.exportButton")}
             </Button>
@@ -453,11 +476,11 @@ export function SettingsView({
           <Separator className="my-2" />
           <div className="flex items-center justify-between gap-3 py-1.5">
             <div>
-              <div className="text-[11px] font-medium">{t("settings.reset")}</div>
-              <p className="text-[10px] text-muted">{t("settings.resetDesc")}</p>
+              <div className="text-xs font-medium">{t("settings.reset")}</div>
+              <p className="text-xs text-muted">{t("settings.resetDesc")}</p>
             </div>
             <Button onClick={onResetData} size="sm" variant="danger">
-              <Trash2 className="h-3.5 w-3.5" />
+              <Delete20Regular />
               {t("settings.resetButton")}
             </Button>
           </div>
@@ -465,12 +488,12 @@ export function SettingsView({
 
         <div className="mt-4 flex items-center justify-between rounded-lg border border-line bg-panel px-3 py-2.5 text-[10px] text-faint">
           <span className="flex items-center gap-2">
-            <Monitor className="h-3.5 w-3.5" />
+            <Desktop24Regular />
             {t("settings.version")}
           </span>
           <span className="flex items-center gap-1 font-mono">
             {t("settings.localFirst")}
-            <ArrowRight className="h-3 w-3" />
+            <ArrowRight20Regular />
           </span>
         </div>
       </div>
@@ -488,7 +511,7 @@ function Section({
   return (
     <section className="mb-3 rounded-lg border border-line bg-panel">
       <div className="border-b border-line px-3 py-2">
-        <h2 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+        <h2 className="text-xs font-semibold text-muted">
           {title}
         </h2>
       </div>
@@ -509,8 +532,8 @@ function SettingRow({
   return (
     <div className="flex items-center justify-between gap-6 border-b border-line/60 py-2 last:border-b-0">
       <div className="min-w-0">
-        <div className="text-[11px] font-medium text-text">{label}</div>
-        <p className="text-[10px] leading-4 text-muted">{description}</p>
+        <div className="text-xs font-medium text-text">{label}</div>
+        <p className="text-xs leading-5 text-muted">{description}</p>
       </div>
       <div className="shrink-0">{children}</div>
     </div>

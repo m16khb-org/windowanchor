@@ -231,6 +231,20 @@ English, Korean, Simplified Chinese, and Japanese resources live in that file.
 Adding a language requires a resource object, a `LANGUAGES` entry, and a QA pass for
 long strings in the left rail, top bar, and capture dialog.
 
+## UI system
+
+The React shell uses **Fluent UI React v9**, Microsoft's Windows 11 design system,
+as the component foundation. `FluentProvider` supplies `webLightTheme` or
+`webDarkTheme`; the Settings page stores `windowanchor.theme` as `system`, `light`,
+or `dark`. Fluent provides buttons, switches, badges, dialogs, menus, inputs, and
+checkboxes with Windows focus, keyboard, and contrast behavior.
+
+The canvas is the only large custom surface. It uses Fluent tokens for monitor
+frames, window cards, strokes, text, and shadows. Tailwind utilities are kept for
+layout only; their theme colors are re-declared on `.fui-FluentProvider` so the
+same classes resolve against the active Fluent theme. The visual reference is the
+PowerToys FancyZones layout editor, not a web dashboard.
+
 ## Testing strategy
 
 - **Rust unit tests**: geometry normalization, display fingerprint scoring, window

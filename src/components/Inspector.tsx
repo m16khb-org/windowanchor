@@ -1,13 +1,13 @@
 import {
-  Clock,
-  Crosshair,
-  Info,
-  Layers,
-  Monitor,
-  Play,
-  Plus,
-  X,
-} from "lucide-react";
+  Add20Regular,
+  Clock20Regular,
+  Desktop24Regular,
+  Dismiss20Regular,
+  Info20Regular,
+  Layer20Regular,
+  Play20Regular,
+  Target20Regular,
+} from "@fluentui/react-icons";
 import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { displayLabel } from "../lib/display";
@@ -76,11 +76,11 @@ export function Inspector({
     const rect = selectedWindow.visualRect ?? selectedWindow.rect;
 
     return (
-      <aside className="panel-scroll flex w-[312px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface/60">
+      <aside className="panel-scroll flex w-[320px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface">
         <div className="flex h-11 items-center justify-between border-b border-line px-3">
           <div className="flex items-center gap-2">
-            <Crosshair className="h-3.5 w-3.5 text-amber" />
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+            <Target20Regular className="text-[var(--colorBrandForeground1)]" />
+            <h2 className="text-xs font-semibold text-muted">
               {t("inspector.title")}
             </h2>
           </div>
@@ -89,7 +89,7 @@ export function Inspector({
             className="h-7 w-7"
             onClick={onClearSelection}
           >
-            <X className="h-3.5 w-3.5" />
+            <Dismiss20Regular />
           </IconButton>
         </div>
 
@@ -110,7 +110,7 @@ export function Inspector({
               {t(`inspector.state.${selectedWindow.state}`)}
             </Badge>
             <Badge tone="teal">
-              <Monitor className="h-2.5 w-2.5" />
+              <Desktop24Regular />
               {display
                 ? displayLabel(display, displays, t)
                 : t("inspector.unassigned")}
@@ -122,7 +122,7 @@ export function Inspector({
         </div>
 
         <section className="border-b border-line p-3">
-          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+          <h3 className="mb-2 text-xs font-semibold text-muted">
             {t("inspector.geometry")}
           </h3>
           <div className="grid grid-cols-2 gap-1.5">
@@ -133,17 +133,17 @@ export function Inspector({
               [t("inspector.height"), rect.height],
             ].map(([label, value]) => (
               <div
-                className="rounded border border-line bg-panel px-2 py-1.5"
+                className="rounded-md border border-line bg-panel-2 px-2 py-1.5"
                 key={label}
               >
-                <div className="text-[9px] uppercase tracking-wide text-faint">
+                <div className="text-[11px] text-muted">
                   {label}
                 </div>
                 <div className="font-mono text-[11px] text-text">{value}</div>
               </div>
             ))}
           </div>
-          <div className="mt-2 flex items-center justify-between rounded border border-line bg-panel px-2 py-1.5">
+          <div className="mt-2 flex items-center justify-between rounded-md border border-line bg-panel-2 px-2 py-1.5">
             <span className="text-[10px] text-muted">
               {t("inspector.displayScale")}
             </span>
@@ -154,19 +154,19 @@ export function Inspector({
         </section>
 
         <section className="border-b border-line p-3">
-          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+          <h3 className="mb-2 text-xs font-semibold text-muted">
             {t("inspector.restoreBehavior")}
           </h3>
-          <label className="flex items-center justify-between gap-3 py-1.5">
-            <span className="text-[11px] text-text">{t("inspector.pin")}</span>
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-xs text-text">{t("inspector.pin")}</span>
             <Switch
               aria-label={t("inspector.pin")}
               checked={pinned}
               onCheckedChange={setPinned}
             />
-          </label>
-          <label className="flex items-center justify-between gap-3 py-1.5">
-            <span className="text-[11px] text-text">
+          </div>
+          <div className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-xs text-text">
               {t("inspector.exactSize")}
             </span>
             <Switch
@@ -174,30 +174,30 @@ export function Inspector({
               checked={exactSize}
               onCheckedChange={setExactSize}
             />
-          </label>
-          <p className="mt-1 text-[10px] leading-4 text-faint">
+          </div>
+          <p className="mt-1 text-xs leading-5 text-faint">
             {t("inspector.behaviorHelp")}
           </p>
         </section>
 
         <section className="border-b border-line p-3">
-          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+          <h3 className="mb-2 text-xs font-semibold text-muted">
             {t("inspector.matchIdentity")}
           </h3>
           <div className="space-y-1.5">
-            <div className="rounded border border-line bg-panel px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-wide text-faint">
+            <div className="rounded-md border border-line bg-panel-2 px-2 py-1.5">
+              <div className="text-[11px] text-muted">
                 {t("inspector.process")}
               </div>
-              <div className="truncate font-mono text-[10px] text-text">
+              <div className="truncate font-mono text-[11px] text-text">
                 {selectedWindow.processPath || selectedWindow.processName}
               </div>
             </div>
-            <div className="rounded border border-line bg-panel px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-wide text-faint">
+            <div className="rounded-md border border-line bg-panel-2 px-2 py-1.5">
+              <div className="text-[11px] text-muted">
                 {t("inspector.windowClass")}
               </div>
-              <div className="truncate font-mono text-[10px] text-text">
+              <div className="truncate font-mono text-[11px] text-text">
                 {selectedWindow.className || "—"}
               </div>
             </div>
@@ -208,14 +208,14 @@ export function Inspector({
             size="sm"
             variant="secondary"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Add20Regular />
             {t("inspector.createRule")}
           </Button>
         </section>
 
         <div className="mt-auto p-3">
-          <div className="flex items-start gap-2 rounded border border-line bg-panel px-2.5 py-2 text-[10px] leading-4 text-muted">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue" />
+          <div className="flex items-start gap-2 rounded-md border border-line bg-panel-2 px-2.5 py-2 text-[10px] leading-4 text-muted">
+            <Info20Regular className="shrink-0 text-[var(--colorBrandForeground1)]" />
             <span>
               <Trans
                 components={{ strong: <strong className="text-text" /> }}
@@ -237,8 +237,8 @@ export function Inspector({
   return (
     <aside className="panel-scroll flex w-[312px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface/60">
       <div className="flex h-11 items-center gap-2 border-b border-line px-3">
-        <Layers className="h-3.5 w-3.5 text-teal" />
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+        <Layer20Regular className="text-[var(--colorPaletteTealForeground1)]" />
+        <h2 className="text-xs font-semibold text-muted">
           {t("inspector.layoutHealth")}
         </h2>
       </div>
@@ -249,7 +249,7 @@ export function Inspector({
             <h3 className="text-[13px] font-semibold">
               {profile ? profileName(profile, t) : t("inspector.layoutHealth")}
             </h3>
-            <p className="text-[10px] text-faint">
+            <p className="text-xs text-faint">
               {profile
                 ? t("inspector.updated", {
                     time: profileUpdatedAt(profile, t),
@@ -264,25 +264,25 @@ export function Inspector({
           />
         </div>
         <div className="grid grid-cols-3 gap-1.5">
-          <div className="rounded border border-line bg-panel px-2 py-2">
+          <div className="rounded-md border border-line bg-panel-2 px-2 py-2">
             <div className="font-mono text-[15px] text-text">
               {profile?.windows.length ?? 0}
             </div>
-            <div className="text-[9px] uppercase tracking-wide text-faint">
+            <div className="text-[11px] text-muted">
               {t("inspector.windows")}
             </div>
           </div>
-          <div className="rounded border border-line bg-panel px-2 py-2">
+          <div className="rounded-md border border-line bg-panel-2 px-2 py-2">
             <div className="font-mono text-[15px] text-text">
               {displays.length}
             </div>
-            <div className="text-[9px] uppercase tracking-wide text-faint">
+            <div className="text-[11px] text-muted">
               {t("inspector.displays")}
             </div>
           </div>
-          <div className="rounded border border-line bg-panel px-2 py-2">
+          <div className="rounded-md border border-line bg-panel-2 px-2 py-2">
             <div className="font-mono text-[15px] text-green">100%</div>
-            <div className="text-[9px] uppercase tracking-wide text-faint">
+            <div className="text-[11px] text-muted">
               {t("inspector.matched")}
             </div>
           </div>
@@ -290,7 +290,7 @@ export function Inspector({
       </div>
 
       <section className="border-b border-line p-3">
-        <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+        <h3 className="mb-2 text-xs font-semibold text-muted">
           {t("inspector.apps")}
         </h3>
         <div className="space-y-1">
@@ -320,8 +320,8 @@ export function Inspector({
 
       <section className="border-b border-line p-3">
         <div className="mb-2 flex items-center gap-2">
-          <Clock className="h-3 w-3 text-faint" />
-          <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+          <Clock20Regular className="text-faint" />
+          <h3 className="text-xs font-semibold text-muted">
             {t("inspector.recentActivity")}
           </h3>
         </div>
@@ -332,7 +332,7 @@ export function Inspector({
                 aria-hidden="true"
                 className={
                   entry.status === "warn"
-                    ? "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber"
+                    ? "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--colorPaletteDarkOrangeForeground1)]"
                     : entry.status === "error"
                       ? "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red"
                       : "mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-green"
@@ -342,11 +342,11 @@ export function Inspector({
                 <div className="text-[11px] leading-4 text-text">
                   {activityTitle(entry, t)}
                 </div>
-                <div className="truncate text-[10px] leading-4 text-faint">
+                <div className="truncate text-xs leading-5 text-faint">
                   {activityDetail(entry, t)}
                 </div>
               </div>
-              <span className="ml-auto shrink-0 text-[9px] text-faint">
+              <span className="ml-auto shrink-0 text-[10px] text-faint">
                 {activityTime(entry, t)}
               </span>
             </div>
@@ -357,21 +357,21 @@ export function Inspector({
       <div className="p-3">
         <div className="rounded-lg border border-line bg-panel p-3">
           <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium">
-            <Info className="h-3.5 w-3.5 text-blue" />
+            <Info20Regular className="shrink-0 text-[var(--colorBrandForeground1)]" />
             {t("inspector.dockingTip")}
           </div>
-          <p className="text-[10px] leading-4 text-muted">
+          <p className="text-xs leading-5 text-muted">
             {t("inspector.dockingBody")}
           </p>
         </div>
 
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Button onClick={onCapture} size="sm" variant="secondary">
-            <Plus className="h-3.5 w-3.5" />
+            <Add20Regular />
             {t("common.capture")}
           </Button>
           <Button onClick={onRestore} size="sm" variant="primary">
-            <Play className="h-3.5 w-3.5" />
+            <Play20Regular />
             {t("common.restore")}
           </Button>
         </div>
@@ -380,7 +380,7 @@ export function Inspector({
         <div className="flex items-center justify-between text-[9px] text-faint">
           <span className="font-mono">WindowAnchor 0.1.0</span>
           <span className="flex items-center gap-1">
-            <Monitor className="h-2.5 w-2.5" />
+            <Desktop24Regular />
             {t("inspector.active", { count: displays.length })}
           </span>
         </div>

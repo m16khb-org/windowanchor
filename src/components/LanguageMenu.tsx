@@ -1,7 +1,17 @@
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Check, ChevronDown, Globe2 } from "lucide-react";
+import {
+  Button,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
+} from "@fluentui/react-components";
+import {
+  Checkmark16Regular,
+  ChevronDown16Regular,
+  Globe20Regular,
+} from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
-import { cn } from "../lib/utils";
 
 const LANGUAGES = [
   { code: "en", short: "EN" },
@@ -17,54 +27,45 @@ export function LanguageMenu() {
     LANGUAGES[0];
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button
+    <Menu>
+      <MenuTrigger disableButtonEnhancement>
+        <Button
+          appearance="subtle"
           aria-label={t("settings.language")}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-panel px-2 text-[11px] text-muted transition-colors hover:border-line-strong hover:text-text"
-          title={t("settings.language")}
-          type="button"
+          icon={<Globe20Regular />}
+          size="small"
         >
-          <Globe2 className="h-3.5 w-3.5" />
-          <span className="font-mono">{current.short}</span>
-          <ChevronDown className="h-3 w-3 text-faint" />
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          className="z-50 min-w-[168px] rounded-lg border border-line-strong bg-panel p-1 shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
-          sideOffset={6}
-        >
-          <DropdownMenu.Label className="px-2 py-1.5 text-[9px] uppercase tracking-[0.14em] text-faint">
-            {t("settings.language")}
-          </DropdownMenu.Label>
+          <span className="font-mono text-[11px]">{current.short}</span>
+          <ChevronDown16Regular />
+        </Button>
+      </MenuTrigger>
+      <MenuPopover>
+        <MenuList>
           {LANGUAGES.map((language) => {
             const active = current.code === language.code;
             const label = t(
               `languages.${language.code === "zh-CN" ? "zh" : language.code}`,
             );
             return (
-              <DropdownMenu.Item
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[11px] outline-none",
-                  active
-                    ? "bg-panel-2 text-text"
-                    : "text-muted data-[highlighted]:bg-panel-2 data-[highlighted]:text-text",
-                )}
+              <MenuItem
+                icon={
+                  active ? (
+                    <Checkmark16Regular />
+                  ) : (
+                    <span className="w-4 font-mono text-[10px] text-faint">
+                      {language.short}
+                    </span>
+                  )
+                }
                 key={language.code}
-                onSelect={() => void i18n.changeLanguage(language.code)}
+                onClick={() => void i18n.changeLanguage(language.code)}
               >
-                <span className="w-4 font-mono text-[9px] text-faint">
-                  {language.short}
-                </span>
-                <span className="flex-1">{label}</span>
-                {active && <Check className="h-3 w-3 text-amber" />}
-              </DropdownMenu.Item>
+                {label}
+              </MenuItem>
             );
           })}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+        </MenuList>
+      </MenuPopover>
+    </Menu>
   );
 }

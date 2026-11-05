@@ -1,7 +1,20 @@
 ﻿# Third-Party Notices
 
 WindowAnchor is licensed under GPL-3.0-or-later. The bundled fonts remain
-under the SIL Open Font License 1.1.
+under the SIL Open Font License 1.1. The UI component library and icon set are
+used under the MIT License.
+
+## Fluent UI React
+
+Copyright (c) Microsoft Corporation.
+
+Licensed under the MIT License.
+
+## Fluent UI System Icons
+
+Copyright (c) Microsoft Corporation.
+
+Licensed under the MIT License.
 
 ## Inter
 

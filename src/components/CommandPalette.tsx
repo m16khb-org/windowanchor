@@ -1,8 +1,14 @@
-import * as Dialog from "@radix-ui/react-dialog";
-import { Command, Search } from "lucide-react";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+} from "@fluentui/react-components";
+import { Search20Regular } from "@fluentui/react-icons";
+import type { ComponentType } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { LucideIcon } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Kbd } from "./ui";
 
@@ -10,7 +16,7 @@ export type CommandAction = {
   id: string;
   label: string;
   description: string;
-  icon: LucideIcon;
+  icon: ComponentType<{ className?: string }>;
   shortcut?: string;
   onSelect: () => void;
 };
@@ -59,16 +65,27 @@ export function CommandPalette({
   }
 
   return (
-    <Dialog.Root onOpenChange={onOpenChange} open={open}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-canvas/70 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-[18%] z-50 w-[min(580px,calc(100vw-48px))] -translate-x-1/2 overflow-hidden rounded-xl border border-line-strong bg-panel shadow-[0_32px_120px_rgba(0,0,0,0.7)]">
-          <Dialog.Title className="sr-only">{t("command.title")}</Dialog.Title>
-          <Dialog.Description className="sr-only">
-            {t("command.description")}
-          </Dialog.Description>
-          <div className="flex items-center gap-2 border-b border-line px-3">
-            <Search className="h-4 w-4 shrink-0 text-faint" />
+    <Dialog
+      open={open}
+      onOpenChange={(_, data) => onOpenChange(data.open)}
+    >
+      <DialogSurface
+        className="max-h-[70vh] w-[min(580px,calc(100vw-48px))] max-w-none overflow-hidden"
+        style={{
+          padding: 0,
+          position: "fixed",
+          top: "16%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          margin: 0,
+        }}
+      >
+        <DialogBody
+          style={{ display: "flex", flexDirection: "column", padding: 0 }}
+        >
+          <div className="flex shrink-0 items-center gap-2 border-b border-line px-3">
+            <Search20Regular className="shrink-0 text-faint" />
+            <DialogTitle className="sr-only">{t("command.title")}</DialogTitle>
             <input
               aria-label={t("command.title")}
               className="h-11 w-full bg-transparent text-sm text-text placeholder:text-faint focus:outline-none"
@@ -91,12 +108,16 @@ export function CommandPalette({
               }}
               placeholder={t("command.placeholder")}
               ref={inputRef}
+              style={{ outline: "none" }}
               value={query}
             />
             <Kbd>Esc</Kbd>
           </div>
 
-          <div className="panel-scroll max-h-[340px] overflow-y-auto p-1.5">
+          <DialogContent
+            className="panel-scroll max-h-[340px] overflow-y-auto"
+            style={{ display: "block", padding: 6 }}
+          >
             {filtered.map((action, index) => {
               const Icon = action.icon;
               return (
@@ -112,14 +133,14 @@ export function CommandPalette({
                   onMouseEnter={() => setActiveIndex(index)}
                   type="button"
                 >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-line bg-panel">
-                    <Icon className="h-3.5 w-3.5" />
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-panel-2 text-[var(--colorBrandForeground1)]">
+                    <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[12px] font-medium">
+                    <span className="block text-[13px] font-medium">
                       {action.label}
                     </span>
-                    <span className="block truncate text-[10px] text-faint">
+                    <span className="block truncate text-[11px] text-faint">
                       {action.description}
                     </span>
                   </span>
@@ -129,14 +150,13 @@ export function CommandPalette({
             })}
 
             {filtered.length === 0 && (
-              <div className="flex items-center gap-2 px-3 py-8 text-xs text-muted">
-                <Command className="h-4 w-4 text-faint" />
+              <div className="px-3 py-8 text-sm text-muted">
                 {t("command.noMatch", { query })}
               </div>
             )}
-          </div>
+          </DialogContent>
 
-          <div className="flex items-center justify-between border-t border-line px-3 py-2 text-[9px] text-faint">
+          <div className="flex items-center justify-between border-t border-line px-3 py-2 text-[10px] text-faint">
             <span className="flex items-center gap-2">
               <span className="flex items-center gap-1">
                 <Kbd>↑</Kbd>
@@ -148,10 +168,10 @@ export function CommandPalette({
                 {t("command.run")}
               </span>
             </span>
-            <span className="font-mono">WindowAnchor</span>
+            <span>WindowAnchor</span>
           </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   );
 }

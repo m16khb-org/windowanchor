@@ -1,12 +1,12 @@
 import {
-  ChevronRight,
-  History,
-  Layers,
-  Plus,
-  Search,
-  Settings,
-  SlidersHorizontal,
-} from "lucide-react";
+  Add20Regular,
+  ChevronRight16Regular,
+  History20Regular,
+  Layer20Regular,
+  Options20Regular,
+  Search20Regular,
+  Settings20Regular,
+} from "@fluentui/react-icons";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -22,12 +22,12 @@ import { Badge, Button, Kbd } from "./ui";
 const NAV_ITEMS: Array<{
   id: Exclude<View, "layouts">;
   labelKey: string;
-  icon: typeof Layers;
+  icon: typeof Layer20Regular;
   meta: string;
 }> = [
-  { id: "rules", labelKey: "topbar.rules", icon: SlidersHorizontal, meta: "4" },
-  { id: "activity", labelKey: "topbar.activity", icon: History, meta: "12" },
-  { id: "settings", labelKey: "topbar.settings", icon: Settings, meta: "" },
+  { id: "rules", labelKey: "topbar.rules", icon: Options20Regular, meta: "4" },
+  { id: "activity", labelKey: "topbar.activity", icon: History20Regular, meta: "12" },
+  { id: "settings", labelKey: "topbar.settings", icon: Settings20Regular, meta: "" },
 ];
 
 export function ProfileRail({
@@ -61,12 +61,12 @@ export function ProfileRail({
   }, [profiles, query]);
 
   return (
-    <aside className="flex w-[268px] shrink-0 flex-col border-r border-line bg-surface/60">
+    <aside className="flex w-[272px] shrink-0 flex-col border-r border-line bg-surface">
       <div className="border-b border-line px-3 py-3">
         <div className="mb-2 flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <Layers className="h-3.5 w-3.5 text-muted" />
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+            <Layer20Regular className="text-muted" />
+            <h2 className="text-xs font-semibold text-muted">
               {t("profiles.title")}
             </h2>
             <span className="font-mono text-[10px] text-faint">
@@ -80,12 +80,12 @@ export function ProfileRail({
             size="icon"
             variant="ghost"
           >
-            <Plus className="h-4 w-4" />
+            <Add20Regular />
           </Button>
         </div>
 
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+          <Search20Regular className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
           <input
             aria-label={t("profiles.search")}
             className="h-8 w-full rounded-md border border-line bg-panel pl-8 pr-2 text-xs text-text placeholder:text-faint focus:border-line-strong focus:outline-none"
@@ -121,7 +121,7 @@ export function ProfileRail({
                 style={
                   active
                     ? {
-                        boxShadow: `inset 2px 0 0 ${profile.accent}`,
+                        boxShadow: "inset 2px 0 0 var(--colorBrandBackground)",
                       }
                     : undefined
                 }
@@ -133,7 +133,7 @@ export function ProfileRail({
                     className="h-1.5 w-1.5 rounded-full"
                     style={{ backgroundColor: profile.accent }}
                   />
-                  <span className="truncate text-[13px] font-semibold">
+                  <span className="truncate text-sm font-semibold">
                     {profileName(profile, t)}
                   </span>
                   {active && (
@@ -148,11 +148,11 @@ export function ProfileRail({
                   )}
                 </div>
 
-                <p className="mb-2 line-clamp-2 text-[11px] leading-4 text-muted">
+                <p className="mb-2 line-clamp-2 text-xs leading-5 text-muted">
                   {profileDescription(profile, t)}
                 </p>
 
-                <div className="relative overflow-hidden rounded border border-line/80 bg-canvas/80 p-1">
+                <div className="relative overflow-hidden rounded-md border border-line bg-panel-2 p-1">
                   <MiniMap
                     accent={profile.accent}
                     className="h-[54px] w-full"
@@ -161,7 +161,7 @@ export function ProfileRail({
                   />
                 </div>
 
-                <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-faint">
+                <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-faint">
                   <span className="min-w-0 truncate font-mono">
                     {t("common.window", { count: profile.windows.length })} ·{" "}
                     {t("common.display", { count: profile.displays.length })}
@@ -184,21 +184,21 @@ export function ProfileRail({
               className={cn(
                 "flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs transition-colors",
                 active
-                  ? "bg-panel-2 text-text"
-                  : "text-muted hover:bg-panel hover:text-text",
+                  ? "bg-panel-2 font-medium text-text"
+                  : "text-muted hover:bg-panel-2 hover:text-text",
               )}
               key={item.id}
               onClick={() => onNavigate(item.id)}
               type="button"
             >
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-4 w-4" />
               <span>{t(item.labelKey)}</span>
               {item.meta && (
                 <span className="ml-auto font-mono text-[10px] text-faint">
                   {item.meta}
                 </span>
               )}
-              <ChevronRight className="h-3 w-3 text-faint" />
+              <ChevronRight16Regular className="text-faint" />
             </button>
           );
         })}

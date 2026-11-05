@@ -3,29 +3,54 @@
 @import "tailwindcss";
 
 @theme {
-  --color-canvas: #070a0f;
-  --color-surface: #0a1017;
-  --color-panel: #0d141d;
-  --color-panel-2: #111a25;
-  --color-panel-3: #162231;
-  --color-line: #1c2a39;
-  --color-line-strong: #2a3d52;
-  --color-text: #e8eff6;
-  --color-muted: #8b9bad;
-  --color-faint: #5c6d80;
-  --color-amber: #f5a524;
-  --color-amber-soft: #2c2110;
-  --color-teal: #2dd4bf;
-  --color-blue: #60a5fa;
-  --color-rose: #fb7185;
-  --color-green: #34d399;
-  --color-red: #f87171;
-  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  --color-canvas: var(--colorNeutralBackground2, #f5f5f5);
+  --color-surface: var(--colorNeutralBackground1, #ffffff);
+  --color-panel: var(--colorNeutralBackground1, #ffffff);
+  --color-panel-2: var(--colorNeutralBackground3, #f0f0f0);
+  --color-panel-3: var(--colorNeutralBackground4, #e5e5e5);
+  --color-line: var(--colorNeutralStroke2, #e0e0e0);
+  --color-line-strong: var(--colorNeutralStroke1, #d1d1d1);
+  --color-text: var(--colorNeutralForeground1, #1b1b1b);
+  --color-muted: var(--colorNeutralForeground2, #424242);
+  --color-faint: var(--colorNeutralForeground3, #616161);
+  --color-amber: var(--colorBrandBackground, #0f6cbd);
+  --color-amber-soft: var(--colorBrandBackground2, #e5f1fb);
+  --color-teal: var(--colorPaletteTealForeground1, #038387);
+  --color-blue: var(--colorPaletteBlueForeground1, #0f6cbd);
+  --color-rose: var(--colorPaletteCranberryForeground1, #c50f1f);
+  --color-green: var(--colorPaletteGreenForeground1, #107c10);
+  --color-red: var(--colorPaletteRedForeground1, #c50f1f);
+  --font-sans: var(--fontFamilyBase, "Segoe UI Variable", "Segoe UI", sans-serif);
+  --font-mono: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+}
+
+/*
+ * Tailwind theme variables are declared on :root, where Fluent's theme tokens
+ * are not available. Re-declare them on the FluentProvider root so the same
+ * utility classes resolve against the active light or dark theme.
+ */
+.fui-FluentProvider {
+  --color-canvas: var(--colorNeutralBackground2);
+  --color-surface: var(--colorNeutralBackground1);
+  --color-panel: var(--colorNeutralBackground1);
+  --color-panel-2: var(--colorNeutralBackground3);
+  --color-panel-3: var(--colorNeutralBackground4);
+  --color-line: var(--colorNeutralStroke2);
+  --color-line-strong: var(--colorNeutralStroke1);
+  --color-text: var(--colorNeutralForeground1);
+  --color-muted: var(--colorNeutralForeground2);
+  --color-faint: var(--colorNeutralForeground3);
+  --color-amber: var(--colorBrandBackground);
+  --color-amber-soft: var(--colorBrandBackground2);
+  --color-teal: var(--colorPaletteTealForeground1);
+  --color-blue: var(--colorPaletteBlueForeground1);
+  --color-rose: var(--colorPaletteCranberryForeground1);
+  --color-green: var(--colorPaletteGreenForeground1);
+  --color-red: var(--colorPaletteRedForeground1);
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
 }
 
 * {
@@ -41,9 +66,9 @@ body,
 body {
   margin: 0;
   overflow: hidden;
-  background: var(--color-canvas);
-  color: var(--color-text);
-  font-family: var(--font-sans);
+  background: var(--colorNeutralBackground2, #f5f5f5);
+  color: var(--colorNeutralForeground1, #1b1b1b);
+  font-family: var(--fontFamilyBase, "Segoe UI Variable", "Segoe UI", sans-serif);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -62,49 +87,52 @@ button {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-amber) 35%, transparent);
-  color: #fff;
+  background: var(--colorBrandBackground2, #e5f1fb);
+  color: var(--colorNeutralForeground1, #1b1b1b);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-amber);
+  outline: 2px solid var(--colorStrokeFocus2, #0f6cbd);
   outline-offset: 2px;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-line-strong) transparent;
+  scrollbar-color: var(--colorNeutralStroke1, #d1d1d1) transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 *::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
   border-radius: 999px;
-  background: var(--color-line-strong);
+  background: var(--colorNeutralStroke1, #d1d1d1);
+  background-clip: content-box;
 }
 
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.blueprint-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--color-blue) 6%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-blue) 6%, transparent) 1px, transparent 1px),
-    linear-gradient(to right, color-mix(in srgb, var(--color-blue) 3%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-blue) 3%, transparent) 1px, transparent 1px);
-  background-size:
-    96px 96px,
-    96px 96px,
-    24px 24px,
-    24px 24px;
+/* FancyZones-style dot grid on the monitor canvas. */
+.layout-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    var(--colorNeutralStroke2, #e0e0e0) 1px,
+    transparent 0
+  );
+  background-size: 16px 16px;
 }
 
-.blueprint-fade {
-  mask-image: radial-gradient(ellipse at center, black 45%, transparent 100%);
+.layout-fade {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 52%,
+    color-mix(in srgb, var(--colorNeutralBackground2, #f5f5f5) 72%, transparent) 100%
+  );
 }
 
 .panel-scroll {
@@ -112,24 +140,19 @@ button {
 }
 
 .hairline {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4);
 }
 
 .window-card {
   transition:
-    transform 140ms ease,
-    border-color 140ms ease,
-    background-color 140ms ease,
-    box-shadow 140ms ease;
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
 }
 
 .window-card:hover {
-  transform: translateY(-1px);
   z-index: 20;
-}
-
-.window-card:active {
-  transform: translateY(0);
+  box-shadow: var(--shadow4, 0 2px 4px rgb(0 0 0 / 0.14));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -141,25 +164,21 @@ button {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-
-  .window-card:hover {
-    transform: none;
-  }
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 .toast-in {
-  animation: toast-in 180ms ease-out both;
+  animation: toast-in 160ms ease-out both;
 }
 
 @keyframes pulse-dot {

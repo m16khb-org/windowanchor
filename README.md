@@ -19,7 +19,7 @@
 
 WindowAnchor is an open-source desktop layout manager. It captures the windows you
 care about, stores their geometry per display configuration, and puts them back
-when your monitors change. The interface is a blueprint-style canvas: displays are
+when your monitors change. The interface is a Fluent layout editor: displays are
 drawn to scale, windows are selectable, and every restore explains what matched,
 what was skipped, and why.
 
@@ -45,11 +45,13 @@ between home and office desks, and use mixed resolutions or scales.
 
 ### Available in this scaffold
 
-- **Blueprint canvas** with per-display focus, zoom, and a live window inventory.
+- **Fluent layout editor** with per-display focus, zoom, and a live window inventory.
 - **Capture dialog** with window selection, display summary, and layout naming.
 - **Windows window enumeration** through Win32 (`EnumWindows`, `GetWindowPlacement`,
   DWM frame bounds, monitor identity).
 - **Best-effort restore** with process path, window class, and title matching.
+- **Fluent UI React v9** controls, light/dark/system themes, and a FancyZones-style
+  layout editor.
 - **App rules, activity, settings, and command palette** surfaces for the product
   model that follows.
 - **Four interface languages**: English, 한국어, 简体中文, 日本語, with system-language
@@ -118,7 +120,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ```text
 src/                     React UI
+  Root.tsx               FluentProvider, light/dark/system theme
   components/            Shell, canvas, inspector, dialogs, views
+  i18n/                  English, Korean, Simplified Chinese, Japanese
   lib/                   Types, mock data, Tauri bridge
   hooks/                 Resize observer
 src-tauri/               Rust backend
@@ -148,15 +152,22 @@ full monitor-configuration matcher are the next milestone.
 
 ## Design direction
 
-WindowAnchor uses a **blueprint control room** visual language:
+WindowAnchor uses **Fluent UI React v9**, Microsoft's Windows 11 design system, so
+it feels at home next to PowerToys and Windows Settings rather than like a web
+dashboard.
 
-- graphite canvas, fine grid, monitor outlines drawn to scale;
-- amber for capture and selection, teal for saved and healthy states;
-- monospace coordinates and display metadata;
-- one hero surface (the canvas), restrained panels, no decorative gradients.
+- Segoe UI Variable typography, Fluent color tokens, rounded cards, and standard
+  Windows controls.
+- Light theme by default, with dark theme and system-theme following.
+- A FancyZones-style layout editor: neutral monitor frames, a subtle grid, and
+  window cards with app accents.
+- Fluent dialogs, menus, switches, badges, and command surfaces. The canvas is the
+  only large custom surface.
+- The UI is keyboard-operable and reduced-motion aware. Accessibility and contrast
+  checks are part of the QA pass.
 
-The UI is dark-first, keyboard-operable, and reduced-motion aware. Accessibility
-and contrast checks are part of the QA pass.
+The PowerToys FancyZones editor is the main visual reference. The product does not
+copy PowerToys code or assets.
 
 ## Internationalization
 

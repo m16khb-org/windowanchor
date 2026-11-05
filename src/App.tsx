@@ -1,14 +1,14 @@
 import {
-  Camera,
-  Grid3X3,
-  History,
-  Layers,
-  Play,
-  Scan,
-  Settings,
-  ShieldCheck,
-  SlidersHorizontal,
-} from "lucide-react";
+  ArrowFit20Regular,
+  Camera24Regular,
+  Grid20Regular,
+  History20Regular,
+  Layer20Regular,
+  Options20Regular,
+  Play24Regular,
+  Settings20Regular,
+  ShieldCheckmark24Regular,
+} from "@fluentui/react-icons";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CaptureDialog } from "./components/CaptureDialog";
@@ -23,6 +23,7 @@ import { StatusBar } from "./components/StatusBar";
 import { Toast, type ToastMessage } from "./components/Toast";
 import { TopBar } from "./components/TopBar";
 import { ActivityView, RulesView, SettingsView } from "./components/Views";
+import type { ThemeMode } from "./Root";
 import { MOCK_ACTIVITY, MOCK_PROFILES, MOCK_RULES } from "./lib/mock";
 import { profileName } from "./lib/profile";
 import {
@@ -52,7 +53,11 @@ function loadStoredProfiles(): LayoutProfile[] | null {
       return null;
     }
     const parsed = JSON.parse(raw) as LayoutProfile[];
-    return Array.isArray(parsed) ? parsed : null;
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+    const persisted = parsed.filter((profile) => profile.id !== "live");
+    return persisted.length > 0 ? persisted : null;
   } catch {
     return null;
   }
@@ -69,7 +74,15 @@ function storedBoolean(key: string, fallback: boolean) {
   return fallback;
 }
 
-export default function App() {
+export default function App({
+  themeMode,
+  resolvedTheme,
+  onThemeModeChange,
+}: {
+  themeMode: ThemeMode;
+  resolvedTheme: "light" | "dark";
+  onThemeModeChange: (mode: ThemeMode) => void;
+}) {
   const { t } = useTranslation();
   const [view, setView] = useState<View>("layouts");
   const [displays, setDisplays] = useState<Display[]>([]);
@@ -155,8 +168,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (profiles.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+    const persisted = profiles.filter((profile) => profile.id !== "live");
+    if (persisted.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, [profiles]);
 
@@ -433,7 +449,7 @@ export default function App() {
         id: "capture",
         label: t("command.actions.capture.label"),
         description: t("command.actions.capture.description"),
-        icon: Camera,
+        icon: Camera24Regular,
         shortcut: "Ctrl Shift C",
         onSelect: () => setCaptureOpen(true),
       },
@@ -443,7 +459,7 @@ export default function App() {
           name: activeProfile ? profileName(activeProfile, t) : t("topbar.layouts"),
         }),
         description: t("command.actions.restore.description"),
-        icon: Play,
+        icon: Play24Regular,
         onSelect: handleRestore,
       },
       {
@@ -454,35 +470,35 @@ export default function App() {
         description: autoRestore
           ? t("command.actions.pause.description")
           : t("command.actions.enable.description"),
-        icon: ShieldCheck,
+        icon: ShieldCheckmark24Regular,
         onSelect: () => setAutoRestore((current) => !current),
       },
       {
         id: "layouts",
         label: t("command.actions.layouts.label"),
         description: t("command.actions.layouts.description"),
-        icon: Layers,
+        icon: Layer20Regular,
         onSelect: () => setView("layouts"),
       },
       {
         id: "rules",
         label: t("command.actions.rules.label"),
         description: t("command.actions.rules.description"),
-        icon: SlidersHorizontal,
+        icon: Options20Regular,
         onSelect: () => setView("rules"),
       },
       {
         id: "activity",
         label: t("command.actions.activity.label"),
         description: t("command.actions.activity.description"),
-        icon: History,
+        icon: History20Regular,
         onSelect: () => setView("activity"),
       },
       {
         id: "settings",
         label: t("command.actions.settings.label"),
         description: t("command.actions.settings.description"),
-        icon: Settings,
+        icon: Settings20Regular,
         onSelect: () => setView("settings"),
       },
       {
@@ -493,14 +509,14 @@ export default function App() {
         description: showGrid
           ? t("command.actions.hideGrid.description")
           : t("command.actions.showGrid.description"),
-        icon: Grid3X3,
+        icon: Grid20Regular,
         onSelect: () => setShowGrid((current) => !current),
       },
       {
         id: "fit",
         label: t("command.actions.fit.label"),
         description: t("command.actions.fit.description"),
-        icon: Scan,
+        icon: ArrowFit20Regular,
         onSelect: () => setZoom(1),
       },
     ],
@@ -568,9 +584,12 @@ export default function App() {
             <SettingsView
               autoRestore={autoRestore}
               onResetData={handleResetData}
+              onThemeModeChange={onThemeModeChange}
               onToggleAutoRestore={setAutoRestore}
               onToggleGrid={() => setShowGrid((current) => !current)}
+              resolvedTheme={resolvedTheme}
               showGrid={showGrid}
+              themeMode={themeMode}
             />
           )}
 

@@ -1,44 +1,44 @@
 import * as React from "react";
-import * as SwitchPrimitive from "@radix-ui/react-switch";
-import { cva, type VariantProps } from "class-variance-authority";
+import {
+  Badge as FluentBadge,
+  Button as FluentButton,
+  Divider,
+  Switch as FluentSwitch,
+} from "@fluentui/react-components";
 import { cn } from "../lib/utils";
 
-const buttonVariants = cva(
-  "inline-flex select-none items-center justify-center gap-2 rounded-md border text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45",
-  {
-    variants: {
-      variant: {
-        primary:
-          "border-amber bg-amber text-canvas shadow-[0_0_0_1px_rgba(245,165,36,0.25)] hover:bg-[#ffb43d]",
-        secondary:
-          "border-line bg-panel-2 text-text hover:border-line-strong hover:bg-panel-3",
-        ghost:
-          "border-transparent bg-transparent text-muted hover:bg-panel-2 hover:text-text",
-        outline:
-          "border-line-strong bg-transparent text-text hover:bg-panel-2",
-        danger:
-          "border-red/40 bg-red/10 text-red hover:bg-red/20",
-      },
-      size: {
-        sm: "h-8 px-3 text-xs",
-        md: "h-9 px-4",
-        icon: "h-8 w-8 p-0",
-      },
-    },
-    defaultVariants: {
-      variant: "secondary",
-      size: "md",
-    },
-  },
-);
+const AnyButton = FluentButton as unknown as React.ComponentType<any>;
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
-  VariantProps<typeof buttonVariants>;
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost" | "outline" | "danger";
+  size?: "sm" | "md" | "icon";
+};
 
-export function Button({ className, variant, size, ...props }: ButtonProps) {
+const appearance = {
+  primary: "primary",
+  secondary: "secondary",
+  ghost: "subtle",
+  outline: "outline",
+  danger: "secondary",
+} as const;
+
+export function Button({
+  className,
+  variant = "secondary",
+  size = "md",
+  ...props
+}: ButtonProps) {
   return (
-    <button
-      className={cn(buttonVariants({ variant, size }), className)}
+    <AnyButton
+      appearance={appearance[variant]}
+      className={cn(
+        size === "sm" && "min-h-7 px-2.5 text-xs",
+        size === "icon" && "h-8 min-w-8 w-8 p-0",
+        variant === "danger" &&
+          "text-[var(--colorPaletteRedForeground1)] hover:text-[var(--colorPaletteRedForeground1)]",
+        className,
+      )}
+      size={size === "md" ? "medium" : "small"}
       {...props}
     />
   );
@@ -47,12 +47,13 @@ export function Button({ className, variant, size, ...props }: ButtonProps) {
 export function IconButton({
   className,
   variant = "ghost",
+  size: _size,
   ...props
 }: ButtonProps) {
   return (
     <Button
       aria-label={props["aria-label"]}
-      className={cn("h-8 w-8 p-0", className)}
+      className={cn("h-8 min-w-8 w-8 p-0", className)}
       size="icon"
       variant={variant}
       {...props}
@@ -60,20 +61,19 @@ export function IconButton({
   );
 }
 
-export function Switch({
-  className,
-  ...props
-}: React.ComponentProps<typeof SwitchPrimitive.Root>) {
+type SwitchProps = Omit<
+  React.ComponentProps<typeof FluentSwitch>,
+  "onChange"
+> & {
+  onCheckedChange?: (checked: boolean) => void;
+};
+
+export function Switch({ onCheckedChange, ...props }: SwitchProps) {
   return (
-    <SwitchPrimitive.Root
-      className={cn(
-        "relative h-5 w-9 shrink-0 cursor-pointer rounded-full border border-line bg-panel-3 transition-colors data-[state=checked]:border-amber/60 data-[state=checked]:bg-amber",
-        className,
-      )}
+    <FluentSwitch
+      onChange={(_, data) => onCheckedChange?.(data.checked)}
       {...props}
-    >
-      <SwitchPrimitive.Thumb className="block h-3.5 w-3.5 translate-x-[3px] rounded-full bg-muted transition-transform data-[state=checked]:translate-x-[18px] data-[state=checked]:bg-canvas" />
-    </SwitchPrimitive.Root>
+    />
   );
 }
 
@@ -81,29 +81,29 @@ export function Badge({
   className,
   tone = "neutral",
   children,
-}: {
-  className?: string;
-  tone?: "neutral" | "amber" | "teal" | "red" | "green";
-  children: React.ReactNode;
+  ...props
+}: React.ComponentProps<typeof FluentBadge> & {
+  tone?: "neutral" | "amber" | "teal" | "red" | "green" | "warning";
 }) {
-  const tones = {
-    neutral: "border-line bg-panel-2 text-muted",
-    amber: "border-amber/30 bg-amber/10 text-amber",
-    teal: "border-teal/30 bg-teal/10 text-teal",
-    red: "border-red/30 bg-red/10 text-red",
-    green: "border-green/30 bg-green/10 text-green",
-  };
+  const colors = {
+    neutral: "subtle",
+    amber: "brand",
+    teal: "informative",
+    red: "danger",
+    green: "success",
+    warning: "warning",
+  } as const;
 
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-none tracking-wide",
-        tones[tone],
-        className,
-      )}
+    <FluentBadge
+      appearance="tint"
+      className={className}
+      color={colors[tone]}
+      size="small"
+      {...props}
     >
       {children}
-    </span>
+    </FluentBadge>
   );
 }
 
@@ -116,5 +116,5 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 export function Separator({ className }: { className?: string }) {
-  return <div className={cn("h-px bg-line", className)} />;
+  return <Divider className={cn("my-1", className)} />;
 }

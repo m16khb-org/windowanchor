@@ -1,10 +1,11 @@
 import {
-  Crosshair,
-  Grid3X3,
-  Minus,
-  Plus,
-  Scan,
-} from "lucide-react";
+  Add20Regular,
+  ArrowFit20Regular,
+  Desktop24Regular,
+  Grid20Regular,
+  Subtract20Regular,
+  Target20Regular,
+} from "@fluentui/react-icons";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Display, WindowInfo } from "../lib/types";
@@ -12,7 +13,7 @@ import { appColor } from "../lib/mock";
 import { useElementSize } from "../hooks/useElementSize";
 import { cn, formatPercent } from "../lib/utils";
 import { AppGlyph, appLabel } from "./AppGlyph";
-import { Badge, IconButton } from "./ui";
+import { Badge, Button, IconButton } from "./ui";
 
 export function LayoutCanvas({
   displays,
@@ -105,9 +106,9 @@ export function LayoutCanvas({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-line bg-surface/40 px-3">
-        <Crosshair className="h-3.5 w-3.5 text-teal" />
-        <span className="text-[11px] font-medium text-text">{t("canvas.title")}</span>
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
+        <Target20Regular className="text-[var(--colorBrandForeground1)]" />
+        <span className="text-xs font-semibold text-text">{t("canvas.title")}</span>
         <Badge tone="teal">
           {t("common.display", { count: displays.length })}
         </Badge>
@@ -160,7 +161,7 @@ export function LayoutCanvas({
             onClick={() => onZoomChange(Math.max(0.5, zoom - 0.1))}
             title={t("canvas.zoomOut")}
           >
-            <Minus className="h-3.5 w-3.5" />
+            <Subtract20Regular />
           </IconButton>
           <IconButton
             aria-label={t("canvas.resetZoom")}
@@ -168,7 +169,7 @@ export function LayoutCanvas({
             onClick={() => onZoomChange(1)}
             title={t("canvas.resetZoom")}
           >
-            <Scan className="h-3.5 w-3.5" />
+            <ArrowFit20Regular />
           </IconButton>
           <IconButton
             aria-label={t("canvas.zoomIn")}
@@ -176,7 +177,7 @@ export function LayoutCanvas({
             onClick={() => onZoomChange(Math.min(2, zoom + 0.1))}
             title={t("canvas.zoomIn")}
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Add20Regular />
           </IconButton>
           <div className="mx-1 h-4 w-px bg-line" />
           <IconButton
@@ -186,7 +187,7 @@ export function LayoutCanvas({
             onClick={onToggleGrid}
             title={t("canvas.toggleGrid")}
           >
-            <Grid3X3 className="h-3.5 w-3.5" />
+            <Grid20Regular />
           </IconButton>
         </div>
       </div>
@@ -194,12 +195,12 @@ export function LayoutCanvas({
       <div
         className={cn(
           "relative min-h-0 flex-1 overflow-hidden bg-canvas",
-          showGrid && "blueprint-grid",
+          showGrid && "layout-grid",
         )}
         onClick={() => onSelectWindow(null)}
         ref={ref}
       >
-        <div className="blueprint-fade pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(13,20,29,0.1),rgba(7,10,15,0.75))]" />
+        <div className="layout-fade pointer-events-none absolute inset-0" />
 
         {visibleDisplays.map((display, index) => {
           const displayNumber = displays.findIndex((item) => item.id === display.id) + 1;
@@ -210,25 +211,26 @@ export function LayoutCanvas({
 
           return (
             <div
-              className="absolute rounded-lg border border-line-strong/90 bg-panel/35 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02),0_12px_40px_rgba(0,0,0,0.28)]"
+              className="absolute rounded-lg border border-line-strong bg-surface shadow-[var(--shadow4)]"
               key={display.id}
               style={{ left, top, width, height }}
             >
-              <div className="pointer-events-none absolute left-2 top-2 flex items-center gap-1.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+              <div className="pointer-events-none absolute -top-5 left-0 flex items-center gap-1.5 whitespace-nowrap">
+                <span className="text-[11px] font-medium text-muted">
                   {t("canvas.display", { number: displayNumber || index + 1 })}
                 </span>
                 {display.primary && (
-                  <span className="rounded border border-teal/30 bg-teal/10 px-1 py-px font-mono text-[9px] text-teal">
+                  <span className="rounded bg-[var(--colorBrandBackground2)] px-1 py-px text-[9px] font-medium text-[var(--colorBrandForeground1)]">
                     {t("canvas.primary")}
                   </span>
                 )}
+                <span className="text-[10px] text-faint">
+                  {display.width}×{display.height} ·{" "}
+                  {formatPercent(display.scaleFactor)}
+                </span>
               </div>
-              <div className="pointer-events-none absolute bottom-2 right-2 font-mono text-[9px] text-faint">
-                {display.width}×{display.height} · {formatPercent(display.scaleFactor)}
-              </div>
-              <div className="pointer-events-none absolute inset-x-3 bottom-0 h-[46px] rounded-t border-x border-t border-line/60 bg-panel-2/50">
-                <span className="absolute left-2 top-1.5 font-mono text-[8px] uppercase tracking-[0.18em] text-faint">
+              <div className="pointer-events-none absolute inset-x-3 bottom-0 h-[46px] rounded-t border-x border-t border-line bg-panel-2">
+                <span className="absolute left-2 top-1.5 text-[9px] text-faint">
                   {t("canvas.taskbar")}
                 </span>
               </div>
@@ -250,10 +252,10 @@ export function LayoutCanvas({
               aria-label={`${window.title} · ${appLabel(window.processName)}`}
               aria-pressed={selected}
               className={cn(
-                "window-card group absolute flex flex-col overflow-hidden rounded-[5px] border text-left backdrop-blur-[1px]",
+                "window-card group absolute flex flex-col overflow-hidden rounded-md border text-left",
                 selected
-                  ? "z-20 border-amber shadow-[0_0_0_1px_rgba(245,165,36,0.55),0_8px_30px_rgba(0,0,0,0.4)]"
-                  : "z-10 border-white/10 hover:border-white/30",
+                  ? "z-20 border-[var(--colorBrandStroke1)] shadow-[var(--shadow8)]"
+                  : "z-10 border-line hover:border-line-strong",
               )}
               data-window-card="true"
               key={window.id}
@@ -266,9 +268,10 @@ export function LayoutCanvas({
                 top: offsetY + rect.y * scale,
                 width,
                 height,
-                backgroundColor: `${color}14`,
-                backgroundImage: `linear-gradient(180deg, ${color}20 0%, transparent 42%)`,
-                borderColor: selected ? undefined : `${color}66`,
+                backgroundColor: "var(--colorNeutralBackground1)",
+                borderColor: selected
+                  ? "var(--colorBrandStroke1)"
+                  : undefined,
               }}
               title={`${window.title}\n${appLabel(window.processName)} · ${rect.width}×${rect.height}`}
               type="button"
@@ -282,11 +285,11 @@ export function LayoutCanvas({
                 <span className="flex w-full items-center gap-1.5 px-2 pt-2">
                   <AppGlyph processName={window.processName} size="sm" />
                   <span className="min-w-0">
-                    <span className="block truncate text-[10px] font-semibold leading-3 text-text">
+                    <span className="block truncate text-[11px] font-semibold leading-4 text-text">
                       {window.title}
                     </span>
                     {showProcess && (
-                      <span className="mt-0.5 block truncate font-mono text-[8px] leading-3 text-muted">
+                      <span className="mt-0.5 block truncate text-[9px] leading-3 text-muted">
                         {appLabel(window.processName)}
                       </span>
                     )}
@@ -303,7 +306,7 @@ export function LayoutCanvas({
               )}
 
               {selected && (
-                <span className="absolute bottom-1 right-1 rounded border border-amber/50 bg-canvas/80 px-1 py-px font-mono text-[8px] text-amber">
+                <span className="absolute bottom-1 right-1 rounded border border-[var(--colorBrandStroke1)] bg-surface/90 px-1 py-px font-mono text-[8px] text-[var(--colorBrandForeground1)]">
                   {rect.width}×{rect.height}
                 </span>
               )}
@@ -314,8 +317,8 @@ export function LayoutCanvas({
         {visibleWindows.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center p-8">
             <div className="w-full max-w-sm rounded-xl border border-line bg-panel/90 p-5 text-center shadow-2xl backdrop-blur">
-              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-panel-2 text-amber">
-                <Scan className="h-5 w-5" />
+              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-panel-2 text-[var(--colorBrandForeground1)]">
+                <Desktop24Regular />
               </div>
               <h2 className="text-sm font-semibold">
                 {displays.length === 0
@@ -327,23 +330,23 @@ export function LayoutCanvas({
                   ? t("canvas.noDisplaysBody")
                   : t("canvas.noWindowsBody")}
               </p>
-              <button
-                className="mt-3 inline-flex h-8 items-center gap-2 rounded-md border border-amber bg-amber px-3 text-xs font-semibold text-canvas"
+              <Button
                 onClick={(event) => {
                   event.stopPropagation();
                   onCapture();
                 }}
-                type="button"
+                size="sm"
+                variant="primary"
               >
                 {t("canvas.captureCurrent")}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
-        <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-3 rounded-md border border-line bg-panel/85 px-2.5 py-1.5 text-[9px] text-muted backdrop-blur">
+        <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-3 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[10px] text-muted shadow-[var(--shadow2)]">
           <span className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--colorBrandBackground)]" />
             {t("canvas.selected")}
           </span>
           <span className="flex items-center gap-1">

@@ -33,11 +33,11 @@ export function MiniMap({
     >
       {displays.map((display) => (
         <rect
-          key={display.id}
-          fill="none"
+          fill="var(--colorNeutralBackground1)"
           height={display.height}
+          key={display.id}
           rx={12}
-          stroke="#2a3d52"
+          stroke="var(--colorNeutralStroke2)"
           strokeWidth={6}
           width={display.width}
           x={display.x}
@@ -51,11 +51,11 @@ export function MiniMap({
           <rect
             key={window.id}
             fill={color}
-            fillOpacity={0.32}
+            fillOpacity={0.22}
             height={Math.max(rect.height, 40)}
             rx={8}
             stroke={color}
-            strokeOpacity={0.7}
+            strokeOpacity={0.55}
             strokeWidth={5}
             width={Math.max(rect.width, 40)}
             x={rect.x}

@@ -3,6 +3,10 @@ import { chromium } from "playwright-core";
 const outDir = process.env.SHOT_DIR ?? ".";
 const browser = await chromium.launch({ channel: "msedge", headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 920 } });
+await page.addInitScript(() => {
+  localStorage.setItem("windowanchor.language", "en");
+  localStorage.setItem("windowanchor.theme", "light");
+});
 const errors = [];
 
 page.on("console", (message) => {

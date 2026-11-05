@@ -1,4 +1,9 @@
-import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import {
+  CheckmarkCircle20Regular,
+  Dismiss16Regular,
+  Info20Regular,
+  Warning20Regular,
+} from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 import { IconButton } from "./ui";
@@ -25,39 +30,39 @@ export function Toast({
 
   const Icon =
     toast.tone === "success"
-      ? CheckCircle2
+      ? CheckmarkCircle20Regular
       : toast.tone === "warning"
-        ? AlertTriangle
-        : Info;
+        ? Warning20Regular
+        : Info20Regular;
 
   return (
     <div
       aria-live="polite"
-      className="toast-in fixed bottom-11 right-4 z-50 flex w-[340px] items-start gap-2.5 rounded-lg border border-line-strong bg-panel-2/95 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur"
+      className="toast-in fixed bottom-10 right-4 z-50 flex w-[360px] items-start gap-2.5 rounded-lg border border-line bg-surface p-3 shadow-[var(--shadow16)]"
       role="status"
     >
       <Icon
         className={cn(
-          "mt-0.5 h-4 w-4 shrink-0",
+          "mt-0.5 shrink-0",
           toast.tone === "success"
-            ? "text-green"
+            ? "text-[var(--colorPaletteGreenForeground1)]"
             : toast.tone === "warning"
-              ? "text-amber"
-              : "text-blue",
+              ? "text-[var(--colorPaletteDarkOrangeForeground1)]"
+              : "text-[var(--colorBrandForeground1)]",
         )}
       />
       <div className="min-w-0 flex-1">
-        <div className="text-[12px] font-medium text-text">{toast.title}</div>
-        <div className="mt-0.5 text-[10px] leading-4 text-muted">
+        <div className="text-[13px] font-semibold text-text">{toast.title}</div>
+        <div className="mt-0.5 text-xs leading-5 text-muted">
           {toast.detail}
         </div>
       </div>
       <IconButton
         aria-label={t("toasts.dismiss")}
-        className="h-6 w-6"
+        className="h-7 w-7"
         onClick={onClose}
       >
-        <X className="h-3 w-3" />
+        <Dismiss16Regular />
       </IconButton>
     </div>
   );
