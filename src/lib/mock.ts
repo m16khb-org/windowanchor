@@ -3,8 +3,16 @@
   AppRule,
   Display,
   LayoutProfile,
+  Settings,
   WindowInfo,
 } from "./types";
+
+export const DEFAULT_SETTINGS: Settings = {
+  autoRestore: true,
+  confirmRestore: false,
+  debounceMs: 1000,
+  showGrid: true,
+};
 
 export const APP_COLORS: Record<string, string> = {
   "Code.exe": "#f5a524",
@@ -42,6 +50,7 @@ export function appColor(processName: string) {
 export const MOCK_DISPLAYS: Display[] = [
   {
     id: "\\\\.\\DISPLAY1",
+    deviceId: "",
     name: "Display 1",
     x: -3840,
     y: 0,
@@ -52,6 +61,7 @@ export const MOCK_DISPLAYS: Display[] = [
   },
   {
     id: "\\\\.\\DISPLAY2",
+    deviceId: "",
     name: "Display 2",
     x: 0,
     y: 0,
@@ -236,6 +246,10 @@ export const MOCK_RULES: AppRule[] = [
   },
 ];
 
+const MOCK_NOW = Date.now();
+const MINUTE = 60 * 1000;
+const DAY = 24 * 60 * MINUTE;
+
 export const MOCK_ACTIVITY: ActivityEntry[] = [
   {
     id: "activity-1",
@@ -244,9 +258,20 @@ export const MOCK_ACTIVITY: ActivityEntry[] = [
     titleKey: "activity.entries.restoredFocus.title",
     detail: "6 windows matched · 0 skipped · 412ms",
     detailKey: "activity.entries.restoredFocus.detail",
-    time: "2m ago",
+    at: MOCK_NOW - 2 * MINUTE,
     timeKey: "time.twoMinutes",
     status: "ok",
+    trigger: "manual",
+    report: {
+      profileId: "focus",
+      profileName: "Focus",
+      profileNameKey: "profiles.sample.focus.name",
+      trigger: "manual",
+      restored: 6,
+      skipped: 0,
+      failed: [],
+      durationMs: 412,
+    },
   },
   {
     id: "activity-2",
@@ -255,7 +280,7 @@ export const MOCK_ACTIVITY: ActivityEntry[] = [
     titleKey: "activity.entries.skippedElevated.title",
     detail: "Task Manager needs the elevation helper. Run WindowAnchor as administrator.",
     detailKey: "activity.entries.skippedElevated.detail",
-    time: "2m ago",
+    at: MOCK_NOW - 2 * MINUTE,
     timeKey: "time.twoMinutes",
     status: "warn",
   },
@@ -266,7 +291,7 @@ export const MOCK_ACTIVITY: ActivityEntry[] = [
     titleKey: "activity.entries.updatedFocus.title",
     detail: "Captured 2 displays and 6 windows at 100% scale.",
     detailKey: "activity.entries.updatedFocus.detail",
-    time: "18m ago",
+    at: MOCK_NOW - 18 * MINUTE,
     timeKey: "time.eighteenMinutes",
     status: "ok",
   },
@@ -277,9 +302,27 @@ export const MOCK_ACTIVITY: ActivityEntry[] = [
     titleKey: "activity.entries.restoredReview.title",
     detail: "4 windows matched · 1 missing app · 388ms",
     detailKey: "activity.entries.restoredReview.detail",
-    time: "Yesterday",
+    at: MOCK_NOW - DAY,
     timeKey: "time.yesterday",
     status: "warn",
+    trigger: "display",
+    report: {
+      profileId: "review",
+      profileName: "Review",
+      profileNameKey: "profiles.sample.review.name",
+      trigger: "display",
+      restored: 3,
+      skipped: 1,
+      failed: [
+        {
+          id: 105,
+          title: "WindowAnchor — File Explorer",
+          processName: "explorer.exe",
+          reason: "window_not_found",
+        },
+      ],
+      durationMs: 388,
+    },
   },
   {
     id: "activity-5",
@@ -288,7 +331,7 @@ export const MOCK_ACTIVITY: ActivityEntry[] = [
     titleKey: "activity.entries.ruleChrome.title",
     detail: "Moved to Display 1 · right 40% after launch.",
     detailKey: "activity.entries.ruleChrome.detail",
-    time: "Yesterday",
+    at: MOCK_NOW - DAY,
     timeKey: "time.yesterday",
     status: "ok",
   },

@@ -2,6 +2,7 @@ import {
   Add20Regular,
   ChevronRight16Regular,
   Delete20Regular,
+  Desktop20Regular,
   History20Regular,
   Layer20Regular,
   MoreHorizontal20Regular,
@@ -19,11 +20,16 @@ import {
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  autoProfileId,
   profileDescription,
   profileName,
   profileUpdatedAt,
 } from "../lib/profile";
-import type { LayoutProfile, View } from "../lib/types";
+import type {
+  LayoutProfile,
+  MonitorConfiguration,
+  View,
+} from "../lib/types";
 import { cn } from "../lib/utils";
 import { MiniMap } from "./MiniMap";
 import { Badge, Button, IconButton, Kbd } from "./ui";
@@ -32,32 +38,51 @@ const NAV_ITEMS: Array<{
   id: Exclude<View, "layouts">;
   labelKey: string;
   icon: typeof Layer20Regular;
-  meta: string;
 }> = [
-  { id: "rules", labelKey: "topbar.rules", icon: Options20Regular, meta: "4" },
-  { id: "activity", labelKey: "topbar.activity", icon: History20Regular, meta: "12" },
-  { id: "settings", labelKey: "topbar.settings", icon: Settings20Regular, meta: "" },
+  { id: "rules", labelKey: "topbar.rules", icon: Options20Regular },
+  { id: "activity", labelKey: "topbar.activity", icon: History20Regular },
+  { id: "settings", labelKey: "topbar.settings", icon: Settings20Regular },
 ];
 
 export function ProfileRail({
   profiles,
   activeProfileId,
   view,
+  monitorConfigurations,
+  currentConfigurationId,
+  ruleCount,
+  activityCount,
   onSelectProfile,
   onNavigate,
   onCapture,
   onDeleteProfile,
+  onAssignProfile,
 }: {
   profiles: LayoutProfile[];
   activeProfileId: string;
   view: View;
+  monitorConfigurations: MonitorConfiguration[];
+  currentConfigurationId: string;
+  ruleCount: number;
+  activityCount: number;
   onSelectProfile: (profile: LayoutProfile) => void;
   onNavigate: (view: Exclude<View, "layouts">) => void;
   onCapture: () => void;
   onDeleteProfile: (profile: LayoutProfile) => void;
+  onAssignProfile: (profile: LayoutProfile) => void;
 }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
+  const thisSetupId = autoProfileId(
+    profiles,
+    monitorConfigurations,
+    currentConfigurationId,
+  );
+  const navCounts: Record<Exclude<View, "layouts">, number> = {
+    rules: ruleCount,
+    activity: activityCount,
+    settings: 0,
+  };
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -154,6 +179,11 @@ export function ProfileRail({
                   <span className="truncate text-sm font-semibold">
                     {profileName(profile, t)}
                   </span>
+                  {profile.id === thisSetupId && (
+                    <span className="shrink-0">
+                      <Badge tone="teal">{t("profiles.thisSetup")}</Badge>
+                    </span>
+                  )}
                   <div
                     className="ml-auto flex shrink-0 items-center gap-1"
                     onClick={(event) => event.stopPropagation()}
@@ -180,6 +210,17 @@ export function ProfileRail({
                       <MenuPopover>
                         <MenuList>
                           <MenuItem
+                            disabled={
+                              profile.id === "live" ||
+                              profile.id === thisSetupId
+                            }
+                            icon={<Desktop20Regular />}
+                            onClick={() => onAssignProfile(profile)}
+                          >
+                            {t("profiles.assign")}
+                          </MenuItem>
+                          <MenuItem
+                            disabled={profile.id === "live"}
                             icon={<Delete20Regular />}
                             onClick={() => onDeleteProfile(profile)}
                           >
@@ -236,9 +277,9 @@ export function ProfileRail({
             >
               <Icon className="h-4 w-4" />
               <span>{t(item.labelKey)}</span>
-              {item.meta && (
+              {navCounts[item.id] > 0 && (
                 <span className="ml-auto font-mono text-[10px] text-faint">
-                  {item.meta}
+                  {navCounts[item.id]}
                 </span>
               )}
               <ChevronRight16Regular className="text-faint" />

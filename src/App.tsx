@@ -9,13 +9,14 @@ import {
   Settings20Regular,
   ShieldCheckmark24Regular,
 } from "@fluentui/react-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CaptureDialog } from "./components/CaptureDialog";
 import {
   CommandPalette,
   type CommandAction,
 } from "./components/CommandPalette";
+import { ConfirmRestoreDialog } from "./components/ConfirmRestoreDialog";
 import { DeleteProfileDialog } from "./components/DeleteProfileDialog";
 import { Inspector } from "./components/Inspector";
 import { LayoutCanvas } from "./components/LayoutCanvas";
@@ -25,54 +26,146 @@ import { Toast, type ToastMessage } from "./components/Toast";
 import { TopBar } from "./components/TopBar";
 import { ActivityView, RulesView, SettingsView } from "./components/Views";
 import type { ThemeMode } from "./Root";
-import { MOCK_ACTIVITY, MOCK_PROFILES, MOCK_RULES } from "./lib/mock";
-import { profileName } from "./lib/profile";
+import { DEFAULT_SETTINGS } from "./lib/mock";
 import {
+  activityDetail,
+  profileName,
+  restoreReasonLabel,
+} from "./lib/profile";
+import {
+  appendActivity,
+  assignProfile,
+  deleteProfile as deleteProfileCommand,
   isTauri,
   loadDisplays,
+  loadState,
   loadWindows,
-  restoreWindows,
-  type RestoreResult,
+  resetStore,
+  restoreLayout,
+  saveProfile,
+  saveRules,
+  saveSettings,
+  subscribe,
 } from "./lib/tauri";
 import type {
-  ActivityEntry,
   AppRule,
+  AppState,
   Display,
   LayoutProfile,
+  RestoreConfirmRequest,
+  RestoreReport,
+  RestoreTrigger,
+  Settings,
   View,
   WindowInfo,
 } from "./lib/types";
 
-const STORAGE_KEY = "windowanchor.profiles";
-const AUTO_RESTORE_KEY = "windowanchor.autoRestore";
-const GRID_KEY = "windowanchor.grid";
+const LEGACY_PROFILES_KEY = "windowanchor.profiles";
+const LEGACY_AUTO_RESTORE_KEY = "windowanchor.autoRestore";
+const LEGACY_GRID_KEY = "windowanchor.grid";
 
-function loadStoredProfiles(): LayoutProfile[] | null {
+function emptyState(): AppState {
+  return {
+    profiles: [],
+    rules: [],
+    settings: { ...DEFAULT_SETTINGS },
+    activity: [],
+    monitorConfigurations: [],
+    currentConfigurationId: "",
+    storePath: "",
+  };
+}
+
+function liveProfile(displays: Display[], windows: WindowInfo[]): LayoutProfile {
+  return {
+    id: "live",
+    name: "Current desktop",
+    nameKey: "profiles.current.name",
+    description: "Captured from this computer when WindowAnchor started.",
+    descriptionKey: "profiles.current.description",
+    updatedAt: new Date().toISOString(),
+    updatedAtKey: "time.justNow",
+    displays,
+    windows,
+    accent: "#f5a524",
+  };
+}
+
+/** The unsaved "Current desktop" profile exists only while the store has none. */
+function withLiveProfile(
+  next: AppState,
+  displays: Display[],
+  windows: WindowInfo[],
+): AppState {
+  if (next.profiles.length > 0 || windows.length === 0) {
+    return next;
+  }
+  return { ...next, profiles: [liveProfile(displays, windows)] };
+}
+
+/**
+ * Legacy captures stored the translated "Just now" text instead of a date. They
+ * get the migration time so their age is shown correctly from now on.
+ */
+function readLegacyProfiles(): LayoutProfile[] {
+  const raw = localStorage.getItem(LEGACY_PROFILES_KEY);
+  if (!raw) {
+    return [];
+  }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
     const parsed = JSON.parse(raw) as LayoutProfile[];
     if (!Array.isArray(parsed)) {
-      return null;
+      return [];
     }
-    const persisted = parsed.filter((profile) => profile.id !== "live");
-    return persisted.length > 0 ? persisted : null;
+    const migratedAt = new Date().toISOString();
+    return parsed
+      .filter((profile) => profile && profile.id !== "live")
+      .map(({ updatedAtKey: _legacyKey, ...profile }) =>
+        Number.isNaN(Date.parse(profile.updatedAt))
+          ? { ...profile, updatedAt: migratedAt }
+          : profile,
+      );
   } catch {
-    return null;
+    return [];
   }
 }
 
-function storedBoolean(key: string, fallback: boolean) {
-  const raw = localStorage.getItem(key);
-  if (raw === "true") {
-    return true;
+/**
+ * One-shot migration of the localStorage store into the app data store.
+ * Profiles are saved oldest first so the backend's newest-first insert keeps order.
+ */
+async function migrateLegacyStore(initial: AppState): Promise<AppState> {
+  let state = initial;
+  const legacyProfiles = readLegacyProfiles();
+  for (const profile of [...legacyProfiles].reverse()) {
+    try {
+      state = await saveProfile(profile);
+    } catch {
+      // A single unreadable legacy profile must not block the rest.
+    }
   }
-  if (raw === "false") {
-    return false;
+
+  const autoRestore = localStorage.getItem(LEGACY_AUTO_RESTORE_KEY);
+  const grid = localStorage.getItem(LEGACY_GRID_KEY);
+  const folded: Partial<Settings> = {};
+  if (autoRestore === "true" || autoRestore === "false") {
+    folded.autoRestore = autoRestore === "true";
   }
-  return fallback;
+  if (grid === "true" || grid === "false") {
+    folded.showGrid = grid === "true";
+  }
+  if (Object.keys(folded).length > 0) {
+    try {
+      state = await saveSettings({ ...state.settings, ...folded });
+    } catch {
+      // Keep the store settings when the fold fails.
+    }
+  }
+
+  localStorage.removeItem(LEGACY_PROFILES_KEY);
+  localStorage.removeItem(LEGACY_AUTO_RESTORE_KEY);
+  localStorage.removeItem(LEGACY_GRID_KEY);
+  return state;
 }
 
 export default function App({
@@ -88,71 +181,118 @@ export default function App({
   const [view, setView] = useState<View>("layouts");
   const [displays, setDisplays] = useState<Display[]>([]);
   const [windows, setWindows] = useState<WindowInfo[]>([]);
-  const [profiles, setProfiles] = useState<LayoutProfile[]>(() => {
-    const stored = loadStoredProfiles();
-    if (stored && stored.length > 0) {
-      return stored;
-    }
-    return isTauri ? [] : MOCK_PROFILES;
-  });
-  const [activeProfileId, setActiveProfileId] = useState(
-    () => profiles[0]?.id ?? "",
-  );
+  const [state, setState] = useState<AppState>(emptyState);
+  const [activeProfileId, setActiveProfileId] = useState("");
   const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [deleteProfile, setDeleteProfile] = useState<LayoutProfile | null>(null);
-  const [autoRestore, setAutoRestore] = useState(() =>
-    storedBoolean(AUTO_RESTORE_KEY, true),
-  );
-  const [showGrid, setShowGrid] = useState(() => storedBoolean(GRID_KEY, true));
+  const [restoreRequest, setRestoreRequest] =
+    useState<RestoreConfirmRequest | null>(null);
   const [zoom, setZoom] = useState(1);
-  const [rules, setRules] = useState<AppRule[]>(MOCK_RULES);
-  const [activity, setActivity] = useState<ActivityEntry[]>(MOCK_ACTIVITY);
   const [lastAction, setLastAction] = useState(() => t("status.ready"));
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
+  const displaysRef = useRef(displays);
+  const windowsRef = useRef(windows);
+  useEffect(() => {
+    displaysRef.current = displays;
+    windowsRef.current = windows;
+  }, [displays, windows]);
+
+  const {
+    profiles,
+    rules,
+    settings,
+    activity,
+    monitorConfigurations,
+    currentConfigurationId,
+    storePath,
+  } = state;
+
   const activeProfile =
-    profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0] ?? null;
+    profiles.find((profile) => profile.id === activeProfileId) ??
+    profiles[0] ??
+    null;
   const selectedWindow =
     windows.find((window) => window.id === selectedWindowId) ?? null;
+  const storedProfiles = useMemo(
+    () => profiles.filter((profile) => profile.id !== "live"),
+    [profiles],
+  );
+  const restoreProfile = restoreRequest
+    ? (profiles.find((profile) => profile.id === restoreRequest.profileId) ??
+      null)
+    : null;
+
+  function commitState(
+    next: AppState,
+    nextDisplays = displaysRef.current,
+    nextWindows = windowsRef.current,
+  ) {
+    setState(withLiveProfile(next, nextDisplays, nextWindows));
+  }
+
+  function showToast(
+    title: string,
+    detail: string,
+    tone: ToastMessage["tone"] = "success",
+  ) {
+    setToast({ id: Date.now(), title, detail, tone });
+  }
+
+  function reportError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(t("toasts.saveFailed"), message, "warning");
+  }
+
+  async function refreshDesktop() {
+    try {
+      const [nextDisplays, nextWindows, nextState] = await Promise.all([
+        loadDisplays(),
+        loadWindows(),
+        loadState(),
+      ]);
+      setDisplays(nextDisplays);
+      setWindows(nextWindows);
+      commitState(nextState, nextDisplays, nextWindows);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      showToast(t("toasts.readFailed"), message, "warning");
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([loadDisplays(), loadWindows()])
-      .then(([nextDisplays, nextWindows]) => {
+    async function boot() {
+      try {
+        const [nextDisplays, nextWindows, initial] = await Promise.all([
+          loadDisplays(),
+          loadWindows(),
+          loadState(),
+        ]);
         if (cancelled) {
           return;
         }
+        const nextState = isTauri
+          ? await migrateLegacyStore(initial)
+          : initial;
+        if (cancelled) {
+          return;
+        }
+        const applied = withLiveProfile(nextState, nextDisplays, nextWindows);
         setDisplays(nextDisplays);
         setWindows(nextWindows);
+        setState(applied);
+        setActiveProfileId(applied.profiles[0]?.id ?? "");
         setLastAction(
           t("status.detected", {
             displays: nextDisplays.length,
             windows: nextWindows.length,
           }),
         );
-
-        if (isTauri && profiles.length === 0 && nextWindows.length > 0) {
-          const liveProfile: LayoutProfile = {
-            id: "live",
-            name: "Current desktop",
-            nameKey: "profiles.current.name",
-            description:
-              "Captured from this computer when WindowAnchor started.",
-            descriptionKey: "profiles.current.description",
-            updatedAt: "Just now",
-            updatedAtKey: "time.justNow",
-            displays: nextDisplays,
-            windows: nextWindows,
-            accent: "#f5a524",
-          };
-          setProfiles([liveProfile]);
-          setActiveProfileId(liveProfile.id);
-        }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         setToast({
           id: Date.now(),
@@ -160,31 +300,56 @@ export default function App({
           detail: message,
           tone: "warning",
         });
-      });
+      }
+    }
+
+    void boot();
 
     return () => {
       cancelled = true;
     };
-    // The initial load runs once; profiles is intentionally read at that moment.
+    // The initial load runs once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const persisted = profiles.filter((profile) => profile.id !== "live");
-    if (persisted.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }, [profiles]);
-
-  useEffect(() => {
-    localStorage.setItem(AUTO_RESTORE_KEY, String(autoRestore));
-  }, [autoRestore]);
-
-  useEffect(() => {
-    localStorage.setItem(GRID_KEY, String(showGrid));
-  }, [showGrid]);
+    const unsubscribe = subscribe({
+      onActivityAdded: (entry) => {
+        setState((current) =>
+          current.activity.some((existing) => existing.id === entry.id)
+            ? current
+            : { ...current, activity: [entry, ...current.activity] },
+        );
+        if (!entry.trigger || entry.trigger === "manual") {
+          return;
+        }
+        if (entry.kind === "skip") {
+          showToast(
+            t("toasts.autoSkip.title"),
+            activityDetail(entry, t),
+            "warning",
+          );
+          return;
+        }
+        void refreshDesktop();
+        showToast(
+          t("toasts.autoRestored.title"),
+          t("toasts.autoRestored.detail", {
+            trigger: t(`activity.triggers.${entry.trigger}`),
+            detail: activityDetail(entry, t),
+          }),
+          entry.status === "ok" ? "success" : "warning",
+        );
+      },
+      onRestoreConfirm: (request) => setRestoreRequest(request),
+      onConfigurationChanged: () => {
+        void refreshDesktop();
+      },
+    });
+    return unsubscribe;
+    // Re-subscribe so automatic-restore toasts follow the active language.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   useEffect(() => {
     if (!toast) {
@@ -217,15 +382,7 @@ export default function App({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [captureOpen, commandOpen]);
 
-  function showToast(
-    title: string,
-    detail: string,
-    tone: ToastMessage["tone"] = "success",
-  ) {
-    setToast({ id: Date.now(), title, detail, tone });
-  }
-
-  function handleCapture(name: string, capturedWindows: WindowInfo[]) {
+  async function handleCapture(name: string, capturedWindows: WindowInfo[]) {
     const accentPalette = ["#f5a524", "#2dd4bf", "#60a5fa", "#fb7185", "#34d399"];
     const profile: LayoutProfile = {
       id: crypto.randomUUID(),
@@ -234,41 +391,85 @@ export default function App({
         count: capturedWindows.length,
         displays: displays.length,
       }),
-      updatedAt: t("time.justNow"),
-      updatedAtKey: "time.justNow",
+      updatedAt: new Date().toISOString(),
       displays,
       windows: capturedWindows,
-      accent: accentPalette[profiles.length % accentPalette.length],
+      accent: accentPalette[storedProfiles.length % accentPalette.length],
     };
 
-    setProfiles((current) => [profile, ...current]);
-    setActiveProfileId(profile.id);
     setCaptureOpen(false);
     setView("layouts");
-    setLastAction(
-      t("status.captured", { name, count: capturedWindows.length }),
-    );
-    setActivity((current) => [
-      {
+    setSelectedWindowId(null);
+    try {
+      const saved = await saveProfile(profile);
+      commitState(saved);
+      setActiveProfileId(profile.id);
+      const withActivity = await appendActivity({
         id: crypto.randomUUID(),
         kind: "capture",
-        title: t("toasts.captured.title", { name }),
-        detail: t("toasts.captured.detail", {
-          count: capturedWindows.length,
-        }),
-        time: t("time.justNow"),
-        timeKey: "time.justNow",
+        title: "",
+        titleKey: "toasts.captured.title",
+        detail: "",
+        detailKey: "toasts.captured.detail",
+        detailParams: { name, count: capturedWindows.length },
+        at: Date.now(),
         status: "ok",
-      },
-      ...current,
-    ]);
-    showToast(
-      t("toasts.captured.title", { name }),
-      t("toasts.captured.detail", { count: capturedWindows.length }),
-    );
+      });
+      commitState(withActivity);
+      setLastAction(
+        t("status.captured", { name, count: capturedWindows.length }),
+      );
+      showToast(
+        t("toasts.captured.title", { name }),
+        t("toasts.captured.detail", { count: capturedWindows.length }),
+      );
+    } catch (error: unknown) {
+      reportError(error);
+    }
   }
 
-  async function handleRestore() {
+  function reportName(report: RestoreReport) {
+    return report.profileNameKey
+      ? t(report.profileNameKey)
+      : report.profileName;
+  }
+
+  function reportDetail(report: RestoreReport) {
+    const first = report.failed[0];
+    const failure = first
+      ? ` · ${first.title}: ${restoreReasonLabel(first.reason, t)}`
+      : "";
+    return report.skipped > 0
+      ? `${t("toasts.restoredWithSkips.shortDetail", {
+          restored: report.restored,
+          skipped: report.skipped,
+        })}${failure}`
+      : t("toasts.restored.detail", { count: report.restored });
+  }
+
+  async function runRestore(profile: LayoutProfile, trigger: RestoreTrigger) {
+    try {
+      const report = await restoreLayout(profile, trigger);
+      const name = reportName(report);
+      showToast(
+        report.skipped > 0
+          ? t("toasts.restoredWithSkips.title", { name })
+          : t("toasts.restored.title", { name }),
+        reportDetail(report),
+        report.skipped > 0 ? "warning" : "success",
+      );
+      setLastAction(
+        t("status.restored", { name, detail: reportDetail(report) }),
+      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      showToast(t("toasts.restoreFailed"), message, "warning");
+    } finally {
+      await refreshDesktop();
+    }
+  }
+
+  function handleRestore() {
     if (!activeProfile) {
       showToast(
         t("toasts.noLayout.title"),
@@ -277,107 +478,45 @@ export default function App({
       );
       return;
     }
+    void runRestore(activeProfile, "manual");
+  }
 
-    const name = profileName(activeProfile, t);
-    const targets = activeProfile.windows.map((window) => {
-      const targetRect =
-        window.state === "minimized" && window.normalRect
-          ? window.normalRect
-          : window.rect;
-
-      return {
-        id: window.id,
-        processPath: window.processPath,
-        processName: window.processName,
-        className: window.className,
-        title: window.title,
-        x: targetRect.x,
-        y: targetRect.y,
-        width: targetRect.width,
-        height: targetRect.height,
-        state: window.state,
-      };
-    });
-
-    let result: RestoreResult | null = null;
-    try {
-      result = await restoreWindows(targets);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      showToast(t("toasts.restoreFailed"), message, "warning");
+  async function handleConfirmRestore() {
+    const request = restoreRequest;
+    setRestoreRequest(null);
+    if (!request) {
       return;
     }
+    const profile = profiles.find((item) => item.id === request.profileId);
+    if (!profile) {
+      return;
+    }
+    await runRestore(profile, request.trigger);
+  }
 
-    const restored = result?.restored ?? targets.length;
-    const skipped = result?.skipped ?? 0;
-    const status = skipped > 0 ? "warn" : "ok";
-    const firstFailure = result?.failed?.[0];
-    const failedTarget = firstFailure
-      ? activeProfile.windows.find((window) => window.id === firstFailure.id)
-      : undefined;
-    const failureReason = firstFailure?.reason;
-    const reasonLabel =
-      failureReason === "window_not_found"
-        ? t("toasts.reasonWindowClosed")
-        : failureReason === "move_failed"
-          ? t("toasts.reasonRefused")
-          : failureReason === "ambiguous_window"
-            ? t("toasts.reasonAmbiguous")
-            : failureReason === "target_off_screen"
-              ? t("toasts.reasonOffScreen")
-              : failureReason === "invalid_geometry"
-                ? t("toasts.reasonInvalid")
-                : failureReason === "move_ignored"
-                  ? t("toasts.reasonIgnored")
-                  : failureReason;
-    const failureDetail =
-      failedTarget && reasonLabel
-        ? ` · ${failedTarget.title}: ${reasonLabel}`
-        : "";
-    const detail =
-      skipped > 0
-        ? t("toasts.restoredWithSkips.shortDetail", { restored, skipped })
-        : t("toasts.restored.detail", { count: restored });
-
-    setLastAction(t("status.restored", { name, detail }));
-    setActivity((current) => [
-      {
-        id: crypto.randomUUID(),
-        kind: "restore",
-        title:
-          skipped > 0
-            ? t("toasts.restoredWithSkips.title", { name })
-            : t("toasts.restored.title", { name }),
-        detail: `${detail}${failureDetail}`,
-        time: t("time.justNow"),
-        timeKey: "time.justNow",
-        status,
-      },
-      ...current,
-    ]);
-    showToast(
-      skipped > 0
-        ? t("toasts.restoredWithSkips.title", { name })
-        : t("toasts.restored.title", { name }),
-      skipped > 0
-        ? `${detail}${failureDetail}`
-        : t("toasts.restored.detail", { count: restored }),
-      skipped > 0 ? "warning" : "success",
-    );
+  async function persistRules(nextRules: AppRule[]) {
+    try {
+      const next = await saveRules(nextRules);
+      commitState(next);
+    } catch (error: unknown) {
+      reportError(error);
+    }
   }
 
   function handleCreateRule(window: WindowInfo) {
-    const rule: AppRule = {
-      id: crypto.randomUUID(),
-      processName: window.processName,
-      match: t("rules.path"),
-      matchKey: "rules.path",
-      target: t("rules.targets.currentPosition"),
-      targetKey: "rules.targets.currentPosition",
-      priority: (rules.length + 1) * 10,
-      enabled: true,
-    };
-    setRules((current) => [...current, rule]);
+    void persistRules([
+      ...rules,
+      {
+        id: crypto.randomUUID(),
+        processName: window.processName,
+        match: t("rules.path"),
+        matchKey: "rules.path",
+        target: t("rules.targets.currentPosition"),
+        targetKey: "rules.targets.currentPosition",
+        priority: (rules.length + 1) * 10,
+        enabled: true,
+      },
+    ]);
     setView("rules");
     setLastAction(t("status.ruleCreated", { process: window.processName }));
     showToast(
@@ -387,46 +526,70 @@ export default function App({
   }
 
   function handleAddRule() {
-    const rule: AppRule = {
-      id: crypto.randomUUID(),
-      processName: "chrome.exe",
-      match: t("rules.path"),
-      matchKey: "rules.path",
-      target: t("rules.targets.displayRight"),
-      targetKey: "rules.targets.displayRight",
-      priority: (rules.length + 1) * 10,
-      enabled: true,
-    };
-    setRules((current) => [...current, rule]);
-    showToast(
-      t("toasts.ruleAdded.title"),
-      t("toasts.ruleAdded.detail"),
-    );
+    void persistRules([
+      ...rules,
+      {
+        id: crypto.randomUUID(),
+        processName: "chrome.exe",
+        match: t("rules.path"),
+        matchKey: "rules.path",
+        target: t("rules.targets.displayRight"),
+        targetKey: "rules.targets.displayRight",
+        priority: (rules.length + 1) * 10,
+        enabled: true,
+      },
+    ]);
+    showToast(t("toasts.ruleAdded.title"), t("toasts.ruleAdded.detail"));
   }
 
   function handleToggleRule(id: string) {
-    setRules((current) =>
-      current.map((rule) =>
+    void persistRules(
+      rules.map((rule) =>
         rule.id === id ? { ...rule, enabled: !rule.enabled } : rule,
       ),
     );
   }
 
-  function handleDeleteProfile(profile: LayoutProfile) {
+  async function handleDeleteProfile(profile: LayoutProfile) {
     const name = profileName(profile, t);
-    const nextProfiles = profiles.filter((item) => item.id !== profile.id);
-
-    setProfiles(nextProfiles);
-    if (activeProfileId === profile.id) {
-      setActiveProfileId(nextProfiles[0]?.id ?? "");
-    }
-    setSelectedWindowId(null);
     setDeleteProfile(null);
-    setLastAction(t("toasts.deleted.title"));
-    showToast(
-      t("toasts.deleted.title"),
-      t("toasts.deleted.detail", { name }),
-    );
+    setSelectedWindowId(null);
+    try {
+      const next = await deleteProfileCommand(profile.id);
+      commitState(next);
+      if (activeProfileId === profile.id) {
+        setActiveProfileId("");
+      }
+      setLastAction(t("toasts.deleted.title"));
+      showToast(
+        t("toasts.deleted.title"),
+        t("toasts.deleted.detail", { name }),
+      );
+    } catch (error: unknown) {
+      reportError(error);
+    }
+  }
+
+  async function handleAssignProfile(profile: LayoutProfile) {
+    const name = profileName(profile, t);
+    try {
+      const next = await assignProfile(profile.id);
+      commitState(next);
+      showToast(
+        t("toasts.assigned.title", { name }),
+        t("toasts.assigned.detail", { name }),
+      );
+    } catch (error: unknown) {
+      reportError(error);
+    }
+  }
+
+  async function handleSettingsChange(next: Settings) {
+    try {
+      commitState(await saveSettings(next));
+    } catch (error: unknown) {
+      reportError(error);
+    }
   }
 
   function handleCopyDiagnostics() {
@@ -434,12 +597,16 @@ export default function App({
       app: "WindowAnchor",
       version: "0.1.0",
       capturedAt: new Date().toISOString(),
+      storePath,
       displays,
       windows,
       activeProfileId,
       profiles,
       rules,
+      settings,
       activity,
+      monitorConfigurations,
+      currentConfigurationId,
     };
     navigator.clipboard
       .writeText(JSON.stringify(payload, null, 2))
@@ -458,23 +625,20 @@ export default function App({
       );
   }
 
-  function handleResetData() {
+  async function handleResetData() {
     if (!window.confirm(t("toasts.confirmReset"))) {
       return;
     }
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(AUTO_RESTORE_KEY);
-    localStorage.removeItem(GRID_KEY);
-    setProfiles(isTauri ? [] : MOCK_PROFILES);
-    setActiveProfileId("");
-    setRules(MOCK_RULES);
-    setActivity([]);
-    setSelectedWindowId(null);
-    setLastAction(t("status.reset"));
-    showToast(
-      t("toasts.reset.title"),
-      t("toasts.reset.detail"),
-    );
+    try {
+      const next = await resetStore();
+      setState(next);
+      setActiveProfileId("");
+      setSelectedWindowId(null);
+      setLastAction(t("status.reset"));
+      showToast(t("toasts.reset.title"), t("toasts.reset.detail"));
+    } catch (error: unknown) {
+      reportError(error);
+    }
   }
 
   const commandActions = useMemo<CommandAction[]>(
@@ -498,14 +662,18 @@ export default function App({
       },
       {
         id: "auto",
-        label: autoRestore
+        label: settings.autoRestore
           ? t("command.actions.pause.label")
           : t("command.actions.enable.label"),
-        description: autoRestore
+        description: settings.autoRestore
           ? t("command.actions.pause.description")
           : t("command.actions.enable.description"),
         icon: ShieldCheckmark24Regular,
-        onSelect: () => setAutoRestore((current) => !current),
+        onSelect: () =>
+          void handleSettingsChange({
+            ...settings,
+            autoRestore: !settings.autoRestore,
+          }),
       },
       {
         id: "layouts",
@@ -537,14 +705,18 @@ export default function App({
       },
       {
         id: "grid",
-        label: showGrid
+        label: settings.showGrid
           ? t("command.actions.hideGrid.label")
           : t("command.actions.showGrid.label"),
-        description: showGrid
+        description: settings.showGrid
           ? t("command.actions.hideGrid.description")
           : t("command.actions.showGrid.description"),
         icon: Grid20Regular,
-        onSelect: () => setShowGrid((current) => !current),
+        onSelect: () =>
+          void handleSettingsChange({
+            ...settings,
+            showGrid: !settings.showGrid,
+          }),
       },
       {
         id: "fit",
@@ -554,21 +726,23 @@ export default function App({
         onSelect: () => setZoom(1),
       },
     ],
-    // handleRestore closes over activeProfile; the action list is rebuilt when it changes.
+    // handleRestore and the settings actions close over the current state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeProfile, autoRestore, showGrid, t],
+    [activeProfile, settings, t],
   );
 
   return (
     <div className="flex h-full flex-col bg-canvas text-text">
       <TopBar
         activeProfile={activeProfile}
-        autoRestore={autoRestore}
+        autoRestore={settings.autoRestore}
         displays={displays}
         onCapture={() => setCaptureOpen(true)}
         onOpenCommand={() => setCommandOpen(true)}
         onRestore={handleRestore}
-        onToggleAutoRestore={setAutoRestore}
+        onToggleAutoRestore={(value) =>
+          void handleSettingsChange({ ...settings, autoRestore: value })
+        }
         view={view}
         windows={windows}
       />
@@ -576,6 +750,10 @@ export default function App({
       <div className="flex min-h-0 flex-1">
         <ProfileRail
           activeProfileId={activeProfile?.id ?? ""}
+          activityCount={activity.length}
+          currentConfigurationId={currentConfigurationId}
+          monitorConfigurations={monitorConfigurations}
+          onAssignProfile={handleAssignProfile}
           onCapture={() => setCaptureOpen(true)}
           onDeleteProfile={setDeleteProfile}
           onNavigate={setView}
@@ -585,6 +763,7 @@ export default function App({
             setSelectedWindowId(null);
           }}
           profiles={profiles}
+          ruleCount={rules.length}
           view={view}
         />
 
@@ -594,10 +773,15 @@ export default function App({
               displays={displays}
               onCapture={() => setCaptureOpen(true)}
               onSelectWindow={setSelectedWindowId}
-              onToggleGrid={() => setShowGrid((current) => !current)}
+              onToggleGrid={() =>
+                void handleSettingsChange({
+                  ...settings,
+                  showGrid: !settings.showGrid,
+                })
+              }
               onZoomChange={setZoom}
               selectedWindowId={selectedWindowId}
-              showGrid={showGrid}
+              showGrid={settings.showGrid}
               windows={windows}
               zoom={zoom}
             />
@@ -617,19 +801,21 @@ export default function App({
           )}
           {view === "settings" && (
             <SettingsView
-              autoRestore={autoRestore}
+              monitorConfigurations={monitorConfigurations}
               onResetData={handleResetData}
+              onSettingsChange={handleSettingsChange}
               onThemeModeChange={onThemeModeChange}
-              onToggleAutoRestore={setAutoRestore}
-              onToggleGrid={() => setShowGrid((current) => !current)}
+              profiles={storedProfiles}
               resolvedTheme={resolvedTheme}
-              showGrid={showGrid}
+              rules={rules}
+              settings={settings}
+              storePath={storePath}
               themeMode={themeMode}
             />
           )}
 
           <StatusBar
-            autoRestore={autoRestore}
+            autoRestore={settings.autoRestore}
             displays={displays}
             lastAction={lastAction}
             windows={windows}
@@ -653,7 +839,7 @@ export default function App({
 
       <CaptureDialog
         defaultName={t("capture.defaultName", {
-          number: profiles.length + 1,
+          number: storedProfiles.length + 1,
         })}
         displays={displays}
         onOpenChange={setCaptureOpen}
@@ -670,6 +856,17 @@ export default function App({
           }
         }}
         profile={deleteProfile}
+      />
+
+      <ConfirmRestoreDialog
+        onConfirm={() => void handleConfirmRestore()}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRestoreRequest(null);
+          }
+        }}
+        profile={restoreProfile}
+        trigger={restoreRequest?.trigger ?? null}
       />
 
       <CommandPalette

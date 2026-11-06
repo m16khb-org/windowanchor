@@ -1,43 +1,37 @@
+mod automation;
+mod display;
 mod model;
 mod platform;
+mod store;
 
-use model::{DisplayInfo, WindowInfo};
+use std::sync::Mutex;
+
+use tauri::{AppHandle, Manager, State};
+
+use automation::AppStore;
+use model::{
+    ActivityEntry, AppRule, AppState, DisplayInfo, LayoutProfile, RestoreReport, RestoreTrigger,
+    Settings, WindowInfo,
+};
+use store::{Store, now_ms};
+
+fn snapshot(store: &Store) -> Result<AppState, String> {
+    let displays = platform::list_displays()?;
+    Ok(store.snapshot(display::configuration_id(&displays)))
+}
+
+fn mutate(
+    store: &State<AppStore>,
+    change: impl FnOnce(&mut Store) -> Result<(), String>,
+) -> Result<AppState, String> {
+    let mut store = store.lock();
+    change(&mut store)?;
+    snapshot(&store)
+}
 
 #[tauri::command]
-fn list_displays(window: tauri::WebviewWindow) -> Result<Vec<DisplayInfo>, String> {
-    let monitors = window
-        .available_monitors()
-        .map_err(|error| error.to_string())?;
-    let primary_position = window
-        .primary_monitor()
-        .map_err(|error| error.to_string())?
-        .map(|monitor| *monitor.position());
-
-    Ok(monitors
-        .into_iter()
-        .enumerate()
-        .map(|(index, monitor)| {
-            let position = *monitor.position();
-            let size = *monitor.size();
-            let name = monitor
-                .name()
-                .cloned()
-                .unwrap_or_else(|| format!("Display {}", index + 1));
-
-            DisplayInfo {
-                id: name.clone(),
-                name,
-                x: position.x,
-                y: position.y,
-                width: size.width,
-                height: size.height,
-                scale_factor: monitor.scale_factor(),
-                primary: primary_position
-                    .map(|primary| primary == position)
-                    .unwrap_or(index == 0),
-            }
-        })
-        .collect())
+fn list_displays() -> Result<Vec<DisplayInfo>, String> {
+    platform::list_displays()
 }
 
 #[tauri::command]
@@ -46,8 +40,60 @@ fn list_windows() -> Result<Vec<WindowInfo>, String> {
 }
 
 #[tauri::command]
-fn restore_windows(targets: Vec<model::RestoreTarget>) -> Result<model::RestoreResult, String> {
-    platform::restore_windows(&targets)
+fn load_state(store: State<AppStore>) -> Result<AppState, String> {
+    snapshot(&store.lock())
+}
+
+#[tauri::command]
+fn save_profile(store: State<AppStore>, profile: LayoutProfile) -> Result<AppState, String> {
+    mutate(&store, |store| store.save_profile(profile, now_ms()))
+}
+
+#[tauri::command]
+fn delete_profile(store: State<AppStore>, id: String) -> Result<AppState, String> {
+    mutate(&store, |store| store.delete_profile(&id))
+}
+
+#[tauri::command]
+fn assign_profile(store: State<AppStore>, profile_id: String) -> Result<AppState, String> {
+    let displays = platform::list_displays()?;
+    mutate(&store, |store| {
+        store.assign_profile(&profile_id, &displays, now_ms())
+    })
+}
+
+#[tauri::command]
+fn save_rules(store: State<AppStore>, rules: Vec<AppRule>) -> Result<AppState, String> {
+    mutate(&store, |store| store.save_rules(rules))
+}
+
+#[tauri::command]
+fn save_settings(store: State<AppStore>, settings: Settings) -> Result<AppState, String> {
+    mutate(&store, |store| store.save_settings(settings))
+}
+
+#[tauri::command]
+fn append_activity(store: State<AppStore>, entry: ActivityEntry) -> Result<AppState, String> {
+    mutate(&store, |store| store.append_activity(entry))
+}
+
+#[tauri::command]
+fn reset_store(store: State<AppStore>) -> Result<AppState, String> {
+    mutate(&store, Store::reset)
+}
+
+/// Runs off the main thread: moving windows of a busy app can block for a while.
+#[tauri::command]
+async fn restore_layout(
+    app: AppHandle,
+    profile: LayoutProfile,
+    trigger: RestoreTrigger,
+) -> Result<RestoreReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        automation::restore_and_record(&app, &profile, trigger)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -81,10 +127,29 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            // %APPDATA%\WindowAnchor on Windows, ~/Library/Application Support/WindowAnchor on macOS.
+            let dir = app.path().data_dir()?.join("WindowAnchor");
+            let (store, warnings) = Store::open(&dir);
+            for warning in warnings {
+                eprintln!("WindowAnchor: {warning}");
+            }
+            app.manage(AppStore(Mutex::new(store)));
+            automation::start(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             list_displays,
             list_windows,
-            restore_windows,
+            load_state,
+            save_profile,
+            delete_profile,
+            assign_profile,
+            save_rules,
+            save_settings,
+            append_activity,
+            reset_store,
+            restore_layout,
             app_info
         ])
         .run(tauri::generate_context!())

@@ -1,25 +1,44 @@
+use std::cell::RefCell;
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::sync::mpsc::{self, Sender};
 
-use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM, RECT};
+use windows::Win32::Foundation::{
+    CloseHandle, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM,
+};
 use windows::Win32::Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute};
 use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITOR_DEFAULTTONULL, MONITORINFO, MONITORINFOEXW,
-    MonitorFromRect, MonitorFromWindow,
+    DISPLAY_DEVICE_ACTIVE, DISPLAY_DEVICEW, EnumDisplayDevicesW, EnumDisplayMonitors,
+    GetMonitorInfoW, HDC, HMONITOR, MONITOR_DEFAULTTONEAREST, MONITOR_DEFAULTTONULL, MONITORINFO,
+    MONITORINFOEXW, MonitorFromRect, MonitorFromWindow,
 };
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::Power::{POWERBROADCAST_SETTING, RegisterPowerSettingNotification};
+use windows::Win32::System::SystemServices::GUID_CONSOLE_DISPLAY_STATE;
 use windows::Win32::System::Threading::{
     OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
 };
+use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GWL_EXSTYLE, GetClassNameW, GetWindowLongW, GetWindowPlacement, GetWindowRect,
-    GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, HWND_TOP, IsIconic, IsWindow,
-    IsWindowVisible, IsZoomed, SW_MAXIMIZE, SW_RESTORE, SW_SHOWMINIMIZED, SW_SHOWNORMAL,
+    CreateWindowExW, DEVICE_NOTIFY_WINDOW_HANDLE, DefWindowProcW, DispatchMessageW,
+    EDD_GET_DEVICE_INTERFACE_NAME, EnumWindows, GUI_INMOVESIZE, GUITHREADINFO, GWL_EXSTYLE,
+    GetClassNameW, GetGUIThreadInfo, GetMessageW, GetWindowLongW, GetWindowPlacement,
+    GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, HWND_TOP,
+    IsIconic, IsWindow, IsWindowVisible, IsZoomed, MONITORINFOF_PRIMARY, MSG,
+    PBT_APMRESUMEAUTOMATIC, PBT_APMRESUMESUSPEND, PBT_APMSUSPEND, PBT_POWERSETTINGCHANGE,
+    RegisterClassW, SPI_SETWORKAREA, SW_MAXIMIZE, SW_RESTORE, SW_SHOWMINIMIZED, SW_SHOWNORMAL,
     SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SetWindowPlacement,
-    SetWindowPos, ShowWindow, WINDOWPLACEMENT, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    SetWindowPos, ShowWindow, TranslateMessage, WINDOW_STYLE, WINDOWPLACEMENT, WM_DISPLAYCHANGE,
+    WM_POWERBROADCAST, WM_SETTINGCHANGE, WNDCLASSW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
 };
-use windows::core::{BOOL, PWSTR};
+use windows::core::{BOOL, PCWSTR, PWSTR, w};
 
-use crate::model::{Rect, RestoreResult, RestoreTarget, WindowInfo, WindowState};
+use crate::automation::DisplayEvent;
+use crate::model::{
+    DisplayInfo, Rect, RestoreFailure, RestoreResult, RestoreTarget, WindowInfo, WindowState,
+};
+
+const WATCHER_CLASS: PCWSTR = w!("WindowAnchorDisplayWatcher");
 
 const SKIPPED_CLASSES: &[&str] = &[
     "Progman",
@@ -49,6 +68,122 @@ pub fn list_windows() -> Result<Vec<WindowInfo>, String> {
     }
 
     Ok(context.windows)
+}
+
+pub fn list_displays() -> Result<Vec<DisplayInfo>, String> {
+    let mut monitors: Vec<HMONITOR> = Vec::new();
+    let listed = unsafe {
+        EnumDisplayMonitors(
+            None,
+            None,
+            Some(collect_monitor),
+            LPARAM(&mut monitors as *mut Vec<HMONITOR> as isize),
+        )
+    };
+    if !listed.as_bool() {
+        return Err("EnumDisplayMonitors failed".to_string());
+    }
+
+    let mut displays: Vec<DisplayInfo> = monitors
+        .into_iter()
+        .filter_map(|monitor| unsafe { describe_monitor(monitor) })
+        .collect();
+    displays.sort_by_key(|display| (!display.primary, display.x, display.y));
+    Ok(displays)
+}
+
+unsafe extern "system" fn collect_monitor(
+    monitor: HMONITOR,
+    _hdc: HDC,
+    _rect: *mut RECT,
+    lparam: LPARAM,
+) -> BOOL {
+    let monitors = unsafe { &mut *(lparam.0 as *mut Vec<HMONITOR>) };
+    monitors.push(monitor);
+    BOOL(1)
+}
+
+unsafe fn describe_monitor(monitor: HMONITOR) -> Option<DisplayInfo> {
+    let mut info = MONITORINFOEXW::default();
+    info.monitorInfo.cbSize = size_of::<MONITORINFOEXW>() as u32;
+    let found = unsafe {
+        GetMonitorInfoW(
+            monitor,
+            &mut info as *mut MONITORINFOEXW as *mut MONITORINFO,
+        )
+    };
+    if !found.as_bool() {
+        return None;
+    }
+
+    let adapter = wide_to_string(&info.szDevice);
+    let bounds = info.monitorInfo.rcMonitor;
+    let (mut dpi_x, mut dpi_y) = (96u32, 96u32);
+    let scale_factor = if unsafe {
+        GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y)
+    }
+    .is_ok()
+    {
+        f64::from(dpi_x) / 96.0
+    } else {
+        1.0
+    };
+
+    Some(DisplayInfo {
+        device_id: unsafe { monitor_device_id(&adapter) },
+        id: adapter.clone(),
+        name: adapter,
+        x: bounds.left,
+        y: bounds.top,
+        width: (bounds.right - bounds.left).max(0) as u32,
+        height: (bounds.bottom - bounds.top).max(0) as u32,
+        scale_factor,
+        primary: info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY != 0,
+    })
+}
+
+/// The monitor attached to an adapter output, as a device interface path such as
+/// `\\?\DISPLAY#DEL41A8#5&2b0f...#{e6f07b5f-...}`. It survives reboots and
+/// adapter renumbering, which `\\.\DISPLAYn` does not.
+unsafe fn monitor_device_id(adapter: &str) -> String {
+    let adapter: Vec<u16> = adapter.encode_utf16().chain(std::iter::once(0)).collect();
+    let mut first = String::new();
+
+    for index in 0.. {
+        let mut device = DISPLAY_DEVICEW {
+            cb: size_of::<DISPLAY_DEVICEW>() as u32,
+            ..Default::default()
+        };
+        let found = unsafe {
+            EnumDisplayDevicesW(
+                PCWSTR(adapter.as_ptr()),
+                index,
+                &mut device,
+                EDD_GET_DEVICE_INTERFACE_NAME,
+            )
+        };
+        if !found.as_bool() {
+            break;
+        }
+
+        let id = wide_to_string(&device.DeviceID);
+        if device.StateFlags.0 & DISPLAY_DEVICE_ACTIVE.0 != 0 {
+            return id;
+        }
+        if first.is_empty() {
+            first = id;
+        }
+    }
+
+    first
+}
+
+fn wide_to_string(buffer: &[u16]) -> String {
+    let end = buffer
+        .iter()
+        .position(|unit| *unit == 0)
+        .unwrap_or(buffer.len());
+    String::from_utf16_lossy(&buffer[..end])
 }
 
 unsafe extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -247,11 +382,7 @@ unsafe fn read_monitor_id(hwnd: HWND) -> Option<String> {
         return None;
     }
 
-    Some(
-        String::from_utf16_lossy(&info.szDevice)
-            .trim_end_matches('\0')
-            .to_string(),
-    )
+    Some(wide_to_string(&info.szDevice))
 }
 
 pub fn restore_windows(targets: &[RestoreTarget]) -> Result<RestoreResult, String> {
@@ -304,14 +435,14 @@ pub fn restore_windows(targets: &[RestoreTarget]) -> Result<RestoreResult, Strin
 
         if candidate.is_none() {
             skipped += 1;
-            failed.push(crate::model::RestoreFailure {
-                id: target.id,
-                reason: if ambiguous {
-                    "ambiguous_window".to_string()
+            failed.push(RestoreFailure::new(
+                target,
+                if ambiguous {
+                    "ambiguous_window"
                 } else {
-                    "window_not_found".to_string()
+                    "window_not_found"
                 },
-            });
+            ));
             continue;
         }
 
@@ -319,19 +450,13 @@ pub fn restore_windows(targets: &[RestoreTarget]) -> Result<RestoreResult, Strin
 
         if !unsafe { IsWindow(Some(hwnd)).as_bool() } {
             skipped += 1;
-            failed.push(crate::model::RestoreFailure {
-                id: target.id,
-                reason: "window_not_found".to_string(),
-            });
+            failed.push(RestoreFailure::new(target, "window_not_found"));
             continue;
         }
 
         if target.width <= 0 || target.height <= 0 {
             skipped += 1;
-            failed.push(crate::model::RestoreFailure {
-                id: target.id,
-                reason: "invalid_geometry".to_string(),
-            });
+            failed.push(RestoreFailure::new(target, "invalid_geometry"));
             continue;
         }
 
@@ -344,10 +469,7 @@ pub fn restore_windows(targets: &[RestoreTarget]) -> Result<RestoreResult, Strin
         let monitor = unsafe { MonitorFromRect(&target_rect, MONITOR_DEFAULTTONULL) };
         if monitor.is_invalid() {
             skipped += 1;
-            failed.push(crate::model::RestoreFailure {
-                id: target.id,
-                reason: "target_off_screen".to_string(),
-            });
+            failed.push(RestoreFailure::new(target, "target_off_screen"));
             continue;
         }
 
@@ -361,10 +483,7 @@ pub fn restore_windows(targets: &[RestoreTarget]) -> Result<RestoreResult, Strin
 
         if !result {
             skipped += 1;
-            failed.push(crate::model::RestoreFailure {
-                id: target.id,
-                reason: "move_ignored".to_string(),
-            });
+            failed.push(RestoreFailure::new(target, "move_ignored"));
             continue;
         }
 
@@ -509,6 +628,149 @@ fn match_score(target: &RestoreTarget, window: &WindowInfo) -> i32 {
     }
 
     score
+}
+
+/// True while the user drags or resizes any window. Restoring during a modal
+/// move/size loop fights the user's pointer, so automation waits.
+pub fn user_is_moving_window() -> bool {
+    let mut info = GUITHREADINFO {
+        cbSize: size_of::<GUITHREADINFO>() as u32,
+        ..Default::default()
+    };
+    unsafe { GetGUIThreadInfo(0, &mut info) }.is_ok() && info.flags.0 & GUI_INMOVESIZE.0 != 0
+}
+
+thread_local! {
+    static WATCHER_EVENTS: RefCell<Option<Sender<DisplayEvent>>> = const { RefCell::new(None) };
+}
+
+/// Starts a thread that owns a hidden top-level window. Broadcasts such as
+/// `WM_DISPLAYCHANGE` reach top-level windows only, so a message-only window
+/// (`HWND_MESSAGE`) would miss them.
+pub fn spawn_display_watcher(events: Sender<DisplayEvent>) -> Result<(), String> {
+    let (ready_tx, ready_rx) = mpsc::channel::<Result<(), String>>();
+
+    std::thread::Builder::new()
+        .name("windowanchor-display-watcher".to_string())
+        .spawn(move || {
+            WATCHER_EVENTS.with(|slot| *slot.borrow_mut() = Some(events));
+
+            let created = unsafe { create_watcher_window() };
+            let failed = created.is_err();
+            let _ = ready_tx.send(created);
+            if failed {
+                return;
+            }
+
+            let mut message = MSG::default();
+            while unsafe { GetMessageW(&mut message, None, 0, 0) }.0 > 0 {
+                unsafe {
+                    let _ = TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+            }
+        })
+        .map_err(|error| error.to_string())?;
+
+    ready_rx
+        .recv()
+        .map_err(|_| "display watcher thread exited".to_string())?
+}
+
+unsafe fn create_watcher_window() -> Result<(), String> {
+    let module = unsafe { GetModuleHandleW(None) }.map_err(|error| error.to_string())?;
+    let instance = HINSTANCE(module.0);
+    let class = WNDCLASSW {
+        lpfnWndProc: Some(watcher_proc),
+        hInstance: instance,
+        lpszClassName: WATCHER_CLASS,
+        ..Default::default()
+    };
+    if unsafe { RegisterClassW(&class) } == 0 {
+        return Err("RegisterClassW failed for the display watcher".to_string());
+    }
+
+    let hwnd = unsafe {
+        CreateWindowExW(
+            WS_EX_TOOLWINDOW,
+            WATCHER_CLASS,
+            w!("WindowAnchor display watcher"),
+            WINDOW_STYLE(0),
+            0,
+            0,
+            0,
+            0,
+            None,
+            None,
+            Some(instance),
+            None,
+        )
+    }
+    .map_err(|error| error.to_string())?;
+
+    // Display power on/off is how modern-standby laptops and DisplayPort monitors
+    // report "wake"; PBT_APMRESUME* alone misses it. The registration lives as
+    // long as the window, which lives as long as the process.
+    let _ = unsafe {
+        RegisterPowerSettingNotification(
+            HANDLE(hwnd.0),
+            &GUID_CONSOLE_DISPLAY_STATE,
+            DEVICE_NOTIFY_WINDOW_HANDLE,
+        )
+    };
+
+    Ok(())
+}
+
+unsafe extern "system" fn watcher_proc(
+    hwnd: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    let event = match message {
+        WM_DISPLAYCHANGE => Some(DisplayEvent::DisplayChanged),
+        WM_SETTINGCHANGE if wparam.0 as u32 == SPI_SETWORKAREA.0 => {
+            Some(DisplayEvent::WorkAreaChanged)
+        }
+        WM_POWERBROADCAST => match wparam.0 as u32 {
+            PBT_APMSUSPEND => Some(DisplayEvent::Suspended),
+            PBT_APMRESUMEAUTOMATIC | PBT_APMRESUMESUSPEND => Some(DisplayEvent::Resumed),
+            PBT_POWERSETTINGCHANGE if lparam.0 != 0 => unsafe { display_power_event(lparam) },
+            _ => None,
+        },
+        _ => None,
+    };
+
+    if let Some(event) = event {
+        WATCHER_EVENTS.with(|slot| {
+            if let Some(events) = slot.borrow().as_ref() {
+                let _ = events.send(event);
+            }
+        });
+    }
+
+    if message == WM_POWERBROADCAST {
+        return LRESULT(1);
+    }
+    unsafe { DefWindowProcW(hwnd, message, wparam, lparam) }
+}
+
+unsafe fn display_power_event(lparam: LPARAM) -> Option<DisplayEvent> {
+    let setting = unsafe { &*(lparam.0 as *const POWERBROADCAST_SETTING) };
+    if setting.PowerSetting != GUID_CONSOLE_DISPLAY_STATE
+        || (setting.DataLength as usize) < size_of::<u32>()
+    {
+        return None;
+    }
+
+    // 0 = off, 1 = on, 2 = dimmed. Dimming is not a display change.
+    let state = unsafe { std::ptr::read_unaligned(setting.Data.as_ptr() as *const u32) };
+    match state {
+        0 => Some(DisplayEvent::DisplaysOff),
+        1 => Some(DisplayEvent::DisplaysOn),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

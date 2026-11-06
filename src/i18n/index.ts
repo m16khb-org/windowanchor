@@ -37,6 +37,8 @@ const en = {
     deleteTitle: "Delete {{name}}?",
     deleteBody:
       "This removes the saved layout from this computer. Window positions are not changed.",
+    thisSetup: "This setup",
+    assign: "Use for this display setup",
     current: {
       name: "Current desktop",
       description: "Captured from this computer when WindowAnchor started.",
@@ -264,6 +266,27 @@ const en = {
       skip: "Skip",
       rule: "Rule",
     },
+    triggers: {
+      manual: "Manual",
+      display: "Display change",
+      workArea: "Work area change",
+      wake: "Wake",
+    },
+    report: {
+      failed_one: "{{count}} window did not restore",
+      failed_other: "{{count}} windows did not restore",
+    },
+    log: {
+      restored: "Restored {{name}}",
+      restoreDetail:
+        "{{restored}} windows moved · {{skipped}} skipped · {{durationMs}}ms",
+      restoredWithSkips: "Restored {{name}} with skips",
+      restoreFailed: "Restore failed",
+      restoreFailedDetail: "Could not restore {{name}} · {{error}}",
+      noLayout: "No layout for this display setup",
+      noLayoutDetail:
+        "{{displays}} displays detected. Assign a layout to restore automatically.",
+    },
     empty: "No {{filter}} activity yet.",
     entries: {
       restoredFocus: {
@@ -322,9 +345,11 @@ const en = {
       "Accessibility permission will be requested on first launch. It is used only to read and move app windows.",
     data: "Data",
     export: "Export data",
-    exportDesc: "Profiles and settings as a JSON file.",
+    exportDesc:
+      "Profiles, rules, settings, and display setups as a JSON file.",
     exportButton: "Export",
     exported: "Exported",
+    storePath: "Store file",
     reset: "Reset local data",
     resetDesc: "Removes profiles, rules, and activity from this computer.",
     resetButton: "Reset",
@@ -377,14 +402,33 @@ const en = {
       title: "Layout deleted",
       detail: "{{name}} was removed.",
     },
+    assigned: {
+      title: "Assigned {{name}}",
+      detail:
+        "Automatic restore will use {{name}} for this display setup.",
+    },
+    autoRestored: {
+      title: "Layout restored automatically",
+      detail: "{{trigger}} · {{detail}}",
+    },
+    autoSkip: {
+      title: "Auto-restore skipped",
+      detail: "{{detail}}",
+    },
+    saveFailed: "Could not save changes",
     confirmReset: "Remove all local profiles, rules, and activity?",
     dismiss: "Dismiss notification",
     reasonWindowClosed: "window is no longer open",
-    reasonRefused: "the window refused the move",
     reasonAmbiguous: "multiple matching windows; skipped to avoid moving the wrong one",
     reasonOffScreen: "saved position is outside the current displays",
     reasonInvalid: "saved size is invalid",
     reasonIgnored: "the app ignored the requested position or size",
+  },
+  confirmRestore: {
+    title: "Restore {{name}}?",
+    body: "{{trigger}} detected. Move the saved windows back into place?",
+    restore: "Restore",
+    later: "Not now",
   },
   languages: {
     en: "English",
@@ -430,6 +474,8 @@ const ko = {
     deleteTitle: "{{name}} 레이아웃을 삭제할까요?",
     deleteBody:
       "이 컴퓨터에서 저장한 레이아웃을 삭제합니다. 창 위치는 변경되지 않습니다.",
+    thisSetup: "현재 구성",
+    assign: "이 디스플레이 구성에 사용",
     current: {
       name: "현재 데스크톱",
       description: "WindowAnchor가 시작될 때 이 컴퓨터에서 캡처했습니다.",
@@ -655,6 +701,27 @@ const ko = {
       skip: "건너뜀",
       rule: "규칙",
     },
+    triggers: {
+      manual: "수동",
+      display: "디스플레이 변경",
+      workArea: "작업 영역 변경",
+      wake: "절전 복귀",
+    },
+    report: {
+      failed_one: "창 {{count}}개를 복원하지 못했습니다",
+      failed_other: "창 {{count}}개를 복원하지 못했습니다",
+    },
+    log: {
+      restored: "{{name}} 복원됨",
+      restoreDetail:
+        "창 {{restored}}개 이동 · {{skipped}}개 건너뜀 · {{durationMs}}ms",
+      restoredWithSkips: "{{name}} 일부만 복원됨",
+      restoreFailed: "복원 실패",
+      restoreFailedDetail: "{{name}}을(를) 복원하지 못했습니다 · {{error}}",
+      noLayout: "이 디스플레이 구성에 맞는 레이아웃이 없습니다",
+      noLayoutDetail:
+        "디스플레이 {{displays}}개를 감지했습니다. 자동 복원할 레이아웃을 지정하세요.",
+    },
     empty: "{{filter}} 활동이 아직 없습니다.",
     entries: {
       restoredFocus: {
@@ -712,9 +779,10 @@ const ko = {
       "첫 실행 시 손쉬운 사용 권한을 요청합니다. 이 권한은 앱 창을 읽고 옮기는 데만 사용합니다.",
     data: "데이터",
     export: "데이터 내보내기",
-    exportDesc: "프로필과 설정을 JSON 파일로 저장합니다.",
+    exportDesc: "프로필, 규칙, 설정, 디스플레이 구성을 JSON 파일로 저장합니다.",
     exportButton: "내보내기",
     exported: "내보냄",
+    storePath: "저장 파일",
     reset: "로컬 데이터 초기화",
     resetDesc: "이 컴퓨터에서 프로필, 규칙, 활동을 삭제합니다.",
     resetButton: "초기화",
@@ -767,14 +835,32 @@ const ko = {
       title: "레이아웃 삭제됨",
       detail: "{{name}} 레이아웃을 삭제했습니다.",
     },
+    assigned: {
+      title: "{{name}} 지정됨",
+      detail: "이 디스플레이 구성에서는 {{name}}이(가) 자동 복원에 사용됩니다.",
+    },
+    autoRestored: {
+      title: "레이아웃을 자동으로 복원했습니다",
+      detail: "{{trigger}} · {{detail}}",
+    },
+    autoSkip: {
+      title: "자동 복원 건너뜀",
+      detail: "{{detail}}",
+    },
+    saveFailed: "변경 사항을 저장하지 못했습니다",
     confirmReset: "모든 로컬 프로필, 규칙, 활동을 삭제할까요?",
     dismiss: "알림 닫기",
     reasonWindowClosed: "창이 더 이상 열려 있지 않음",
-    reasonRefused: "창이 이동을 거부함",
     reasonAmbiguous: "같은 창이 여러 개라 잘못 옮기지 않도록 건너뜀",
     reasonOffScreen: "저장된 위치가 현재 디스플레이 밖에 있음",
     reasonInvalid: "저장된 크기가 올바르지 않음",
     reasonIgnored: "앱이 요청한 위치나 크기를 무시함",
+  },
+  confirmRestore: {
+    title: "{{name}}을(를) 복원할까요?",
+    body: "{{trigger}} 감지됨. 저장된 창을 원래 위치로 옮길까요?",
+    restore: "복원",
+    later: "나중에",
   },
   languages: {
     en: "English",
@@ -819,6 +905,8 @@ const zh = {
     delete: "删除布局",
     deleteTitle: "删除{{name}}？",
     deleteBody: "从这台电脑删除已保存的布局。窗口位置不会改变。",
+    thisSetup: "当前配置",
+    assign: "用于此显示器配置",
     current: {
       name: "当前桌面",
       description: "WindowAnchor 启动时从这台电脑捕获。",
@@ -1038,6 +1126,27 @@ const zh = {
       skip: "跳过",
       rule: "规则",
     },
+    triggers: {
+      manual: "手动",
+      display: "显示器变更",
+      workArea: "工作区变更",
+      wake: "唤醒",
+    },
+    report: {
+      failed_one: "{{count}} 个窗口未能恢复",
+      failed_other: "{{count}} 个窗口未能恢复",
+    },
+    log: {
+      restored: "已恢复 {{name}}",
+      restoreDetail:
+        "已移动 {{restored}} 个窗口 · 跳过 {{skipped}} 个 · {{durationMs}}ms",
+      restoredWithSkips: "{{name}} 部分恢复",
+      restoreFailed: "恢复失败",
+      restoreFailedDetail: "无法恢复 {{name}} · {{error}}",
+      noLayout: "当前显示器配置没有布局",
+      noLayoutDetail:
+        "检测到 {{displays}} 台显示器。请指定用于自动恢复的布局。",
+    },
     empty: "暂无{{filter}}活动。",
     entries: {
       restoredFocus: {
@@ -1093,9 +1202,10 @@ const zh = {
       "首次启动时会请求辅助功能权限。该权限仅用于读取和移动应用窗口。",
     data: "数据",
     export: "导出数据",
-    exportDesc: "将配置文件和设置导出为 JSON 文件。",
+    exportDesc: "将配置文件、规则、设置和显示器配置导出为 JSON 文件。",
     exportButton: "导出",
     exported: "已导出",
+    storePath: "存储文件",
     reset: "重置本地数据",
     resetDesc: "从这台电脑删除配置文件、规则和活动。",
     resetButton: "重置",
@@ -1147,14 +1257,32 @@ const zh = {
       title: "布局已删除",
       detail: "已删除{{name}}。",
     },
+    assigned: {
+      title: "已指定 {{name}}",
+      detail: "此显示器配置的自动恢复将使用 {{name}}。",
+    },
+    autoRestored: {
+      title: "布局已自动恢复",
+      detail: "{{trigger}} · {{detail}}",
+    },
+    autoSkip: {
+      title: "已跳过自动恢复",
+      detail: "{{detail}}",
+    },
+    saveFailed: "无法保存更改",
     confirmReset: "删除所有本地配置文件、规则和活动？",
     dismiss: "关闭通知",
     reasonWindowClosed: "窗口已不再打开",
-    reasonRefused: "窗口拒绝了移动",
     reasonAmbiguous: "存在多个匹配窗口，已跳过以避免移动错误的窗口",
     reasonOffScreen: "保存的位置在当前显示器之外",
     reasonInvalid: "保存的大小无效",
     reasonIgnored: "应用忽略了请求的位置或大小",
+  },
+  confirmRestore: {
+    title: "恢复{{name}}？",
+    body: "检测到{{trigger}}。要将保存的窗口移回原位吗？",
+    restore: "恢复",
+    later: "暂不",
   },
   languages: {
     en: "English",
@@ -1200,6 +1328,8 @@ const ja = {
     deleteTitle: "{{name}} を削除しますか？",
     deleteBody:
       "このコンピューターから保存したレイアウトを削除します。ウィンドウの位置は変更されません。",
+    thisSetup: "現在の構成",
+    assign: "このディスプレイ構成で使用",
     current: {
       name: "現在のデスクトップ",
       description: "WindowAnchor の起動時にこのコンピューターからキャプチャしました。",
@@ -1427,6 +1557,27 @@ const ja = {
       skip: "スキップ",
       rule: "ルール",
     },
+    triggers: {
+      manual: "手動",
+      display: "ディスプレイ変更",
+      workArea: "作業領域の変更",
+      wake: "スリープ解除",
+    },
+    report: {
+      failed_one: "{{count}} 個のウィンドウを復元できませんでした",
+      failed_other: "{{count}} 個のウィンドウを復元できませんでした",
+    },
+    log: {
+      restored: "{{name}} を復元しました",
+      restoreDetail:
+        "{{restored}} 個のウィンドウを移動 · {{skipped}} 個をスキップ · {{durationMs}}ms",
+      restoredWithSkips: "{{name}} を一部復元しました",
+      restoreFailed: "復元に失敗しました",
+      restoreFailedDetail: "{{name}} を復元できませんでした · {{error}}",
+      noLayout: "このディスプレイ構成のレイアウトがありません",
+      noLayoutDetail:
+        "{{displays}} 台のディスプレイを検出しました。自動復元するレイアウトを指定してください。",
+    },
     empty: "{{filter}}のアクティビティはまだありません。",
     entries: {
       restoredFocus: {
@@ -1484,9 +1635,11 @@ const ja = {
       "初回起動時にアクセシビリティ権限を要求します。この権限はアプリのウィンドウを読み取り、移動するためだけに使用します。",
     data: "データ",
     export: "データをエクスポート",
-    exportDesc: "プロファイルと設定を JSON ファイルとして保存します。",
+    exportDesc:
+      "プロファイル、ルール、設定、ディスプレイ構成を JSON ファイルとして保存します。",
     exportButton: "エクスポート",
     exported: "エクスポート済み",
+    storePath: "保存ファイル",
     reset: "ローカルデータをリセット",
     resetDesc: "このコンピューターからプロファイル、ルール、アクティビティを削除します。",
     resetButton: "リセット",
@@ -1539,14 +1692,32 @@ const ja = {
       title: "レイアウトを削除しました",
       detail: "{{name}} を削除しました。",
     },
+    assigned: {
+      title: "{{name}} を割り当てました",
+      detail: "このディスプレイ構成の自動復元には {{name}} が使われます。",
+    },
+    autoRestored: {
+      title: "レイアウトを自動復元しました",
+      detail: "{{trigger}} · {{detail}}",
+    },
+    autoSkip: {
+      title: "自動復元をスキップしました",
+      detail: "{{detail}}",
+    },
+    saveFailed: "変更を保存できませんでした",
     confirmReset: "すべてのローカルプロファイル、ルール、アクティビティを削除しますか？",
     dismiss: "通知を閉じる",
     reasonWindowClosed: "ウィンドウが開かれていません",
-    reasonRefused: "ウィンドウが移動を拒否しました",
     reasonAmbiguous: "一致するウィンドウが複数あるため、誤移動を避けてスキップしました",
     reasonOffScreen: "保存された位置が現在のディスプレイ外です",
     reasonInvalid: "保存されたサイズが無効です",
     reasonIgnored: "アプリが要求した位置またはサイズを無視しました",
+  },
+  confirmRestore: {
+    title: "{{name}} を復元しますか？",
+    body: "{{trigger}}を検出しました。保存したウィンドウを元の位置に戻しますか？",
+    restore: "復元",
+    later: "後で",
   },
   languages: {
     en: "English",

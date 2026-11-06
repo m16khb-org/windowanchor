@@ -4,6 +4,8 @@ import {
   ArrowDownload20Regular,
   ArrowRight20Regular,
   CheckmarkCircle20Regular,
+  ChevronDown16Regular,
+  ChevronRight16Regular,
   Copy20Regular,
   Desktop24Regular,
   Delete20Regular,
@@ -22,9 +24,16 @@ import {
   activityDetail,
   activityTime,
   activityTitle,
+  restoreReasonLabel,
   ruleTarget,
 } from "../lib/profile";
-import type { ActivityEntry, AppRule } from "../lib/types";
+import type {
+  ActivityEntry,
+  AppRule,
+  LayoutProfile,
+  MonitorConfiguration,
+  Settings,
+} from "../lib/types";
 import { cn } from "../lib/utils";
 import { AppGlyph, appLabel } from "./AppGlyph";
 import { Badge, Button, Separator, Switch } from "./ui";
@@ -146,10 +155,63 @@ export function ActivityView({
 }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<"all" | ActivityEntry["kind"]>("all");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const filtered =
     filter === "all" ? activity : activity.filter((entry) => entry.kind === filter);
 
   const filters = ["all", "restore", "capture", "skip", "rule"] as const;
+
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const weekRestores = activity.filter(
+    (entry) =>
+      entry.kind === "restore" &&
+      typeof entry.at === "number" &&
+      entry.at >= weekAgo,
+  );
+  const reports = weekRestores.flatMap((entry) =>
+    entry.report ? [entry.report] : [],
+  );
+  const attempted = reports.reduce(
+    (total, report) => total + report.restored + report.skipped,
+    0,
+  );
+  const restored = reports.reduce(
+    (total, report) => total + report.restored,
+    0,
+  );
+  const durations = reports.reduce(
+    (total, report) => total + report.durationMs,
+    0,
+  );
+  const stats = [
+    [
+      t("activity.restores7d"),
+      weekRestores.length > 0 ? String(weekRestores.length) : "—",
+      "text-text",
+    ],
+    [
+      t("activity.successRate"),
+      attempted > 0 ? `${Math.round((restored / attempted) * 100)}%` : "—",
+      "text-green",
+    ],
+    [
+      t("activity.average"),
+      reports.length > 0 ? `${Math.round(durations / reports.length)} ms` : "—",
+      "text-text",
+    ],
+  ];
+
+  function toggleExpanded(id: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
 
   return (
     <div className="panel-scroll min-h-0 flex-1 overflow-y-auto p-5">
@@ -173,11 +235,7 @@ export function ActivityView({
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-2">
-          {[
-            [t("activity.restores7d"), "7", "text-text"],
-            [t("activity.successRate"), "96%", "text-green"],
-            [t("activity.average"), "412ms", "text-text"],
-          ].map(([label, value, tone]) => (
+          {stats.map(([label, value, tone]) => (
             <div
               className="rounded-lg border border-line bg-panel px-3 py-2.5"
               key={label}
@@ -241,6 +299,11 @@ export function ActivityView({
                   <span className="truncate text-[12px] font-medium">
                     {activityTitle(entry, t)}
                   </span>
+                  {entry.trigger && (
+                    <Badge tone="neutral">
+                      {t(`activity.triggers.${entry.trigger}`)}
+                    </Badge>
+                  )}
                   <Badge tone={entry.status === "ok" ? "green" : "warning"}>
                     {t(`activity.filters.${entry.kind}`)}
                   </Badge>
@@ -248,6 +311,45 @@ export function ActivityView({
                 <p className="mt-0.5 text-xs leading-5 text-muted">
                   {activityDetail(entry, t)}
                 </p>
+                {entry.report && entry.report.failed.length > 0 && (
+                  <div className="mt-1">
+                    <button
+                      aria-expanded={expanded.has(entry.id)}
+                      className="flex items-center gap-1 text-xs text-muted transition-colors hover:text-text"
+                      onClick={() => toggleExpanded(entry.id)}
+                      type="button"
+                    >
+                      {expanded.has(entry.id) ? (
+                        <ChevronDown16Regular />
+                      ) : (
+                        <ChevronRight16Regular />
+                      )}
+                      {t("activity.report.failed", {
+                        count: entry.report.failed.length,
+                      })}
+                    </button>
+                    {expanded.has(entry.id) && (
+                      <ul className="mt-1.5 space-y-1 rounded-md border border-line bg-panel-2 px-2 py-1.5">
+                        {entry.report.failed.map((failure) => (
+                          <li
+                            className="flex items-center gap-2 text-xs"
+                            key={`${entry.id}-${failure.id}-${failure.reason}`}
+                          >
+                            <span className="min-w-0 truncate text-text">
+                              {failure.title}
+                            </span>
+                            <span className="shrink-0 font-mono text-[10px] text-faint">
+                              {failure.processName}
+                            </span>
+                            <span className="ml-auto shrink-0 text-[11px] text-muted">
+                              {restoreReasonLabel(failure.reason, t)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
               <span className="shrink-0 font-mono text-xs text-faint">
                 {activityTime(entry, t)}
@@ -268,19 +370,23 @@ export function ActivityView({
 }
 
 export function SettingsView({
-  autoRestore,
-  onToggleAutoRestore,
-  showGrid,
-  onToggleGrid,
+  settings,
+  profiles,
+  rules,
+  monitorConfigurations,
+  storePath,
+  onSettingsChange,
   onResetData,
   themeMode,
   resolvedTheme,
   onThemeModeChange,
 }: {
-  autoRestore: boolean;
-  onToggleAutoRestore: (value: boolean) => void;
-  showGrid: boolean;
-  onToggleGrid: () => void;
+  settings: Settings;
+  profiles: LayoutProfile[];
+  rules: AppRule[];
+  monitorConfigurations: MonitorConfiguration[];
+  storePath: string;
+  onSettingsChange: (next: Settings) => void;
   onResetData: () => void;
   themeMode: ThemeMode;
   resolvedTheme: "light" | "dark";
@@ -288,8 +394,6 @@ export function SettingsView({
 }) {
   const { t, i18n } = useTranslation();
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
-  const [confirmRestore, setConfirmRestore] = useState(false);
-  const [debounce, setDebounce] = useState("1000");
   const [saved, setSaved] = useState(false);
 
   const languageOptions = [
@@ -304,8 +408,10 @@ export function SettingsView({
       app: "WindowAnchor",
       version: "0.1.0",
       exportedAt: new Date().toISOString(),
-      profiles: JSON.parse(localStorage.getItem("windowanchor.profiles") ?? "[]"),
-      settings: { autoRestore, showGrid, launchAtLogin, confirmRestore, debounce },
+      profiles,
+      rules,
+      settings,
+      monitorConfigurations,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
@@ -342,8 +448,10 @@ export function SettingsView({
           >
             <Switch
               aria-label={t("settings.autoRestore")}
-              checked={autoRestore}
-              onCheckedChange={onToggleAutoRestore}
+              checked={settings.autoRestore}
+              onCheckedChange={(value) =>
+                onSettingsChange({ ...settings, autoRestore: value })
+              }
             />
           </SettingRow>
           <SettingRow
@@ -352,8 +460,10 @@ export function SettingsView({
           >
             <Switch
               aria-label={t("settings.confirm")}
-              checked={confirmRestore}
-              onCheckedChange={setConfirmRestore}
+              checked={settings.confirmRestore}
+              onCheckedChange={(value) =>
+                onSettingsChange({ ...settings, confirmRestore: value })
+              }
             />
           </SettingRow>
           <SettingRow
@@ -363,8 +473,13 @@ export function SettingsView({
             <select
               aria-label={t("settings.delay")}
               className="h-8 rounded-md border border-line bg-canvas px-2 text-xs text-text focus:border-line-strong focus:outline-none"
-              onChange={(event) => setDebounce(event.target.value)}
-              value={debounce}
+              onChange={(event) =>
+                onSettingsChange({
+                  ...settings,
+                  debounceMs: Number(event.target.value),
+                })
+              }
+              value={String(settings.debounceMs)}
             >
               <option value="500">500 ms</option>
               <option value="1000">1 s</option>
@@ -391,8 +506,10 @@ export function SettingsView({
           >
             <Switch
               aria-label={t("settings.grid")}
-              checked={showGrid}
-              onCheckedChange={onToggleGrid}
+              checked={settings.showGrid}
+              onCheckedChange={(value) =>
+                onSettingsChange({ ...settings, showGrid: value })
+              }
             />
           </SettingRow>
           <SettingRow
@@ -473,6 +590,22 @@ export function SettingsView({
               {saved ? t("settings.exported") : t("settings.exportButton")}
             </Button>
           </div>
+          {storePath && (
+            <>
+              <Separator className="my-2" />
+              <div className="py-1.5">
+                <div className="text-xs font-medium">
+                  {t("settings.storePath")}
+                </div>
+                <p
+                  className="truncate font-mono text-xs text-muted"
+                  title={storePath}
+                >
+                  {storePath}
+                </p>
+              </div>
+            </>
+          )}
           <Separator className="my-2" />
           <div className="flex items-center justify-between gap-3 py-1.5">
             <div>
