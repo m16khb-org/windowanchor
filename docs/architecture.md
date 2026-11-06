@@ -21,12 +21,12 @@ React UI (Tauri WebView)
 Tauri command layer (src-tauri/src/lib.rs)
         │
         ▼
-platform::Controller
-   ├─ windows: Win32 + DWM
-   └─ darwin:  cgo + AppKit + Accessibility API (planned)
+platform (src-tauri/src/platform)          store (src-tauri/src/store.rs)
+   ├─ windows: Win32 + DWM + watcher       automation (src-tauri/src/automation.rs)
+   └─ darwin:  AppKit + Accessibility API (planned)
         │
         ▼
-core model: Display, WindowInfo, LayoutProfile, AppRule, RestoreTarget
+core model: Display, WindowInfo, LayoutProfile, MonitorConfiguration, RestoreReport
 ```
 
 The frontend never calls Win32 directly. All platform behavior goes through Tauri
@@ -39,7 +39,8 @@ reuse the same UI.
 
 ```ts
 type Display = {
-  id: string;        // Windows: \\.\DISPLAY1 + monitor device ID; macOS: CGDisplay UUID
+  id: string;        // Windows: \\.\DISPLAY1 (adapter output); windows point here via monitorId
+  deviceId: string;  // Windows: monitor device interface path; macOS: CGDisplay UUID
   name: string;
   x: number;         // virtual desktop coordinates
   y: number;
@@ -50,10 +51,11 @@ type Display = {
 };
 ```
 
-A display identity must not depend only on the port or the index. Windows uses
-`EnumDisplayDevices` monitor IDs plus a geometry fingerprint; macOS uses
-`CGDisplayCreateUUIDFromDisplayID` plus a geometry fingerprint. The fingerprint is
-`(width, height, scale, primary, relative position)`.
+A display identity must not depend only on the port or the index. The display
+configuration ID (`src-tauri/src/display.rs`) is an FNV-1a hash, `cfg-` plus 16 hex
+digits, over the sorted per-display tuples
+`(deviceId or id, width x height, scale %, primary, x,y)`. Display order does not
+change it; resolution, scale, arrangement, and a different monitor do.
 
 ### WindowInfo
 
@@ -78,8 +80,14 @@ needs the outer rect to reproduce the window geometry.
 
 ### LayoutProfile
 
-A named snapshot of displays, windows, and app rules at capture time. The profile
-stores the display configuration it was captured on, not just absolute pixels.
+A named snapshot of displays and windows at capture time. The backend stores the
+`configurationId` of the displays it was captured on.
+
+### MonitorConfiguration
+
+One record per display configuration ever seen: its displays, `firstSeen`,
+`lastSeen`, and the `profileId` that automatic restore uses for it. Capturing a new
+layout assigns it to its configuration; the layout menu can reassign.
 
 ### Restore target
 
@@ -105,11 +113,11 @@ type RestoreTarget = {
 
 ### Display enumeration
 
-The UI currently receives displays from Tauri's `available_monitors()` and
-`primary_monitor()`. The Windows platform layer also reads `MONITORINFOEXW.szDevice`
-for each window, which is the key used to associate a window with a display. The
-next iteration adds `EnumDisplayDevices` monitor device IDs and an EDID-based
-fingerprint so a display can be recognized after a port change.
+`list_displays` uses `EnumDisplayMonitors` and `GetMonitorInfoW` for bounds, the
+primary flag, and the adapter output name (`MONITORINFOEXW.szDevice`), which is the
+key used to associate a window with a display. `GetDpiForMonitor(MDT_EFFECTIVE_DPI)`
+gives the scale. `EnumDisplayDevicesW(szDevice, EDD_GET_DEVICE_INTERFACE_NAME)` gives
+the attached monitor's device interface path, which is the `deviceId`.
 
 ### Window enumeration
 
@@ -154,6 +162,12 @@ again afterward; maximized windows are moved to their normal rectangle and then
 maximized. The captured relative stacking order is applied last with
 `SWP_NOACTIVATE`.
 
+`restore_layout` builds the targets from the profile in Rust, runs off the main
+thread, and serializes with automatic restores. Every restore produces a
+`RestoreReport` (`trigger`, `restored`, `skipped`, `failed[]` with title, process,
+and reason, `durationMs`) that is appended to the activity log and emitted as
+`activity-added`.
+
 The Windows process sets **Per-Monitor V2 DPI awareness** before Tauri creates any
 window, so `GetWindowRect` and `SetWindowPos` use the same physical-pixel space as
 the monitor inventory.
@@ -194,28 +208,63 @@ move but not report every attribute. The restore report must distinguish
 
 ## Automation
 
-The long-running background service will own a hidden message window:
+`src-tauri/src/automation.rs` runs one background thread for the life of the app.
 
-- Windows: `WM_DISPLAYCHANGE`, `WM_SETTINGCHANGE`, `WM_POWERBROADCAST`, and a
-  2-second polling fallback.
-- macOS: CoreGraphics reconfiguration callback, AppKit screen-parameter
-  notification, and workspace wake notification.
+- Windows event source: a hidden top-level window on its own thread. Broadcasts
+  only reach top-level windows, so it is not a message-only window. It handles
+  `WM_DISPLAYCHANGE`, `WM_SETTINGCHANGE(SPI_SETWORKAREA)`, `WM_POWERBROADCAST`
+  (`PBT_APMSUSPEND`, `PBT_APMRESUME*`), and `GUID_CONSOLE_DISPLAY_STATE` power
+  setting notifications for display off/on.
+- Polling fallback: every 2 seconds the display configuration ID is recomputed. A
+  change records the configuration, emits `configuration-changed`, and counts as a
+  display event. The first poll only records the startup configuration.
+- Debounce: events reset a quiet timer (`settings.debounceMs`, 500 ms–3 s). Nothing
+  fires while the machine or its displays are asleep; display-on or resume after
+  sleep turns the pending trigger into `wake`. Trigger priority is
+  `wake > display > workArea`.
+- When the timer expires and the user is not in a move/size loop
+  (`GetGUIThreadInfo` → `GUI_INMOVESIZE`), the backend selects the profile for the
+  current configuration: the assigned profile, else the newest profile captured on
+  it. With no profile it records an `activity.log.noLayout` skip. With
+  `confirmRestore` it emits `restore-confirm` and the UI asks first. Otherwise it
+  restores and records the report.
+- The app never restores its own windows (they are excluded from enumeration).
+- Automation stops when the app exits. A tray icon that keeps it running is M5.
 
-Events are debounced for about one second after the display configuration stops
-changing. Restore is skipped while the user is dragging or resizing a window, and
-the app never restores its own windows.
+macOS will use the CoreGraphics reconfiguration callback, the AppKit
+screen-parameter notification, and the workspace wake notification.
 
 ## Storage
 
-The current scaffold stores profiles in WebView local storage for fast UI work.
-The product store will live at:
+`src-tauri/src/store.rs` owns one versioned JSON file:
 
-- Windows: `%APPDATA%\WindowAnchor\`
-- macOS: `~/Library/Application Support/WindowAnchor/`
+- Windows: `%APPDATA%\WindowAnchor\store.json`
+- macOS: `~/Library/Application Support/WindowAnchor/store.json`
 
-The format is versioned JSON with atomic writes and a backup copy. If event history
-grows beyond a few thousand entries, it moves to SQLite. Profiles and rules are
-exported as human-readable JSON.
+```ts
+type StoreData = {
+  version: 1;
+  profiles: LayoutProfile[];          // newest first
+  rules: AppRule[];
+  settings: { autoRestore; confirmRestore; debounceMs; showGrid };
+  activity: ActivityEntry[];          // newest first, capped at 500
+  monitorConfigurations: MonitorConfiguration[];
+};
+```
+
+- Every mutation is applied to a copy, written to `store.json.tmp`, flushed, and
+  renamed over `store.json`; the previous file is copied to `store.json.bak` first.
+  Memory changes only after the write succeeds.
+- An unreadable `store.json` is moved to `store.corrupt-<ms>.json` and the backup is
+  loaded. A store with a newer `version` is loaded read-only and never overwritten.
+- The UI reads and writes only through Tauri commands (`load_state`,
+  `save_profile`, `delete_profile`, `assign_profile`, `save_rules`,
+  `save_settings`, `append_activity`, `reset_store`); each returns the full state.
+- On first launch the UI migrates `windowanchor.profiles`, `windowanchor.autoRestore`,
+  and `windowanchor.grid` from WebView local storage into the store and deletes them.
+  Theme and language remain WebView preferences.
+- If event history outgrows a few thousand entries, it moves to SQLite. Profiles
+  and rules are exported as human-readable JSON.
 
 ## Security and privacy
 
@@ -237,8 +286,10 @@ English, Korean, Simplified Chinese, and Japanese resources live in that file.
 - Components use `useTranslation()` and never hardcode visible UI copy.
 - Sample profiles, activity entries, and rule targets store translation keys, not
   translated text, so switching language updates them immediately.
-- Real activity entries are created in the language active at the time. Window
-  titles, process paths, and application names are user data and are not translated.
+- Activity entries, including those the backend writes, store translation keys
+  and parameters (`titleKey`, `detailKey`, `detailParams`) and an epoch-ms `at`, so
+  they follow the current language. Window titles, process paths, and application
+  names are user data and are not translated.
 - Both the top-bar language menu and the Settings page call `i18n.changeLanguage`.
 
 Adding a language requires a resource object, a `LANGUAGES` entry, and a QA pass for
@@ -260,8 +311,8 @@ PowerToys FancyZones layout editor, not a web dashboard.
 
 ## Testing strategy
 
-- **Rust unit tests**: geometry normalization, display fingerprint scoring, window
-  match scoring, restore validation.
+- **Rust unit tests**: display configuration ID, store persistence/backup/version
+  guard/profile selection, debounce and wake handling, window match scoring.
 - **Windows integration tests**: create test windows in a helper process, capture,
   move, restore, assert geometry.
 - **Frontend**: TypeScript checks, component tests for the canvas and dialogs,

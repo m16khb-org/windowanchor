@@ -23,10 +23,10 @@ when your monitors change. The interface is a Fluent layout editor: displays are
 drawn to scale, windows are selectable, and every restore explains what matched,
 what was skipped, and why.
 
-> **Status: early preview.** The repository currently ships the Tauri + React
-> shell, the Windows window inventory, manual capture, and a best-effort restore.
-> Automatic triggers, persistent profile storage, and macOS support are the next
-> milestones. See the roadmap below.
+> **Status: early preview.** The repository ships the Tauri + React shell, the
+> Windows window inventory, capture, restore, a persistent local store, and
+> automatic restore after display changes and wake. The tray, launch at login,
+> and macOS support are the next milestones. See the roadmap below.
 
 ## Why another window manager?
 
@@ -43,30 +43,38 @@ between home and office desks, and use mixed resolutions or scales.
 
 ## Features
 
-### Available in this scaffold
+### Available now
 
 - **Fluent layout editor** with per-display focus, zoom, and a live window inventory.
-- **Per-layout actions**: use the `…` menu on a layout card to delete it.
+- **Per-layout actions**: use the `…` menu on a layout card to delete it or to make
+  it the layout for the current display setup.
 - **Capture dialog** with window selection, display summary, and layout naming.
 - **Windows window enumeration** through Win32 (`EnumWindows`, `GetWindowPlacement`,
   DWM frame bounds, monitor identity).
+- **Display identity** from `EnumDisplayMonitors` and `EnumDisplayDevices`: monitor
+  device ID, resolution, scale, primary flag, and position form a display
+  configuration ID.
 - **Best-effort restore** with process path, window class, and title matching.
+- **Persistent store** in `%APPDATA%\WindowAnchor\store.json`: profiles, rules,
+  settings, display configurations, and activity. Versioned JSON, atomic writes,
+  and a backup copy.
+- **Automatic restore** after a display change, work-area change, resume, or
+  display power-on. Events are debounced (500 ms–3 s), restore waits while you
+  drag a window, and "Confirm before restore" asks first.
+- **Restore report**: every restore records its trigger, duration, and each
+  skipped window with a reason in the Activity view.
 - **Fluent UI React v9** controls, light/dark/system themes, and a FancyZones-style
   layout editor.
-- **App rules, activity, settings, and command palette** surfaces for the product
-  model that follows.
 - **Four interface languages**: English, 한국어, 简体中文, 日本語, with system-language
   detection and a per-user preference.
-- **Local-first storage** for profiles in the current build (WebView local storage).
 - **Keyboard-first**: `Ctrl K` command palette, `Ctrl Shift C` capture.
 
 ### Planned
 
-- Persistent profile and rule storage in the app data directory.
-- Automatic restore on display change, resolution change, wake, and dock.
-- Monitor configuration profiles keyed by device ID, resolution, and scale.
+- App rules that move matched windows (rules are stored; the rule engine is not
+  implemented yet).
 - macOS support through the Accessibility API (`AXUIElement`).
-- Tray menu, launch at login, import/export, and restore diagnostics.
+- Tray menu, launch at login, import, and an elevated helper for admin windows.
 - Signed Windows installer and notarized macOS DMG.
 
 ## Platform support
@@ -127,10 +135,13 @@ src/                     React UI
   lib/                   Types, mock data, Tauri bridge
   hooks/                 Resize observer
 src-tauri/               Rust backend
-  src/model.rs           Display, window, restore DTOs
+  src/model.rs           Display, window, profile, store, restore DTOs
+  src/display.rs         Display configuration ID
+  src/store.rs           Versioned JSON store in the app data directory
+  src/automation.rs      Display/wake watcher loop, debounce, restore report
   src/platform/          Platform implementations
-    windows.rs           Win32 enumeration and restore
-  src/lib.rs             Tauri commands
+    windows.rs           Win32 displays, windows, restore, display watcher
+  src/lib.rs             Tauri commands and startup
 docs/                    Architecture and screenshots
 scripts/                 UI QA and screenshot helpers
 ```
@@ -146,16 +157,17 @@ scripts/                 UI QA and screenshot helpers
    the wrong window.
 4. Move the matched window with `SetWindowPos`, restore minimized windows first,
    and reapply maximized state last. Restore the captured relative stacking order.
-5. Report `restored`, `skipped`, and `failed` counts with a reason. A missing
-   window never blocks the rest of the layout.
+5. Report `restored` and `skipped` counts, each skipped window with a reason, the
+   trigger, and the duration. A missing window never blocks the rest of the layout.
 
 Only windows stored in the active layout are moved. Other visible windows stay
 where they are; the Inspector shows how many windows are currently open versus how
 many are part of the layout.
 
-The current implementation matches windows in the live session and across app
-restarts when the process is still running. Persistent profile storage and a
-full monitor-configuration matcher are the next milestone.
+Automatic restore picks the layout assigned to the current display configuration,
+or else the newest layout captured on it. If no layout matches, the Activity view
+records a skip instead of guessing. Automation runs while the WindowAnchor window
+is open; closing it stops automation until the tray arrives in M5.
 
 ## Design direction
 
@@ -192,14 +204,14 @@ menu is in the top bar and in Settings.
 
 ## Roadmap
 
-| Milestone | Scope |
-|---|---|
-| M0 · Scaffold | Tauri + React shell, design system, CI, docs |
-| M1 · Windows inventory | Displays, windows, capture dialog, manual restore |
-| M2 · Persistence | Profiles, rules, monitor configurations in app data |
-| M3 · Automation | Display-change and wake triggers, debounce, restore report |
-| M4 · macOS | Accessibility bridge, permissions onboarding, DMG packaging |
-| M5 · Product polish | Tray, login item, updater, signed installers, import/export |
+| Milestone | Scope | Status |
+|---|---|---|
+| M0 · Scaffold | Tauri + React shell, design system, CI, docs | Done |
+| M1 · Windows inventory | Displays, windows, capture dialog, manual restore | Done |
+| M2 · Persistence | Profiles, rules, monitor configurations in app data | Done |
+| M3 · Automation | Display-change and wake triggers, debounce, restore report | Done |
+| M4 · macOS | Accessibility bridge, permissions onboarding, DMG packaging | Planned |
+| M5 · Product polish | Tray, login item, updater, signed installers, import/export | Planned |
 
 ## Contributing
 
